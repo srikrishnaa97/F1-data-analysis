@@ -27,7 +27,7 @@ with col1:
 with col2:
     st.title('Formula 1 Data Analysis')
 
-@st.cache_data
+@st.cache_data(ttl=2*3600)
 def get_session_data(year,gp,session):
     data = fastf1.get_session(year,gp,session)
     data.load()
@@ -35,8 +35,11 @@ def get_session_data(year,gp,session):
 
 @st.cache_data
 def get_event_schedule_data(year):
-    events = fastf1.get_event_schedule(year)
-    return events 
+    schedule = fastf1.get_event_schedule(year)
+    schedule['EventDate'] = pd.to_datetime(schedule['EventDate'])
+    today = dt.datetime.now()
+    schedule['Days from Today'] = (schedule['EventDate'] - today).dt.days
+    return schedule 
 
 @st.cache_data
 def get_event_data(year,gp):
@@ -44,14 +47,28 @@ def get_event_data(year,gp):
     return event
 
 # Sidebar
+
+current_year = dt.datetime.now().year
+
+events = get_event_schedule_data(current_year)
+past_events = events[events['Days from Today'] < 0]
+
+if len(past_events) == 0:
+    past_events = get_event_schedule_data(current_year-1)
+    current_year -= 1
+
 year = st.sidebar.radio(
     "Year",
-    np.arange(2023,2020,-1)
+    np.arange(current_year,2020,-1)
 )
 events = get_event_schedule_data(year)
+past_events = events[events['Days from Today'] < 0]
+latest_event = len(past_events) - 2
+
 gp = st.sidebar.selectbox(
     "Grand Prix",
-    [events.get_event_by_round(n).EventName for n in range(1,len(events))]
+    [events.get_event_by_round(n).EventName for n in range(1,len(events))],
+    index = latest_event
 )
 event = get_event_data(year,gp)
 session = st.sidebar.selectbox(
@@ -100,7 +117,13 @@ def convert_timedelta_to_time(date):
 
 def basic_plots(drivers):
     df = pd.DataFrame()
-    plots = ['Speed','Distance','Throttle','DRS','nGear']
+    plots = [
+        'Speed',
+        # 'Distance',
+        'Throttle',
+        'DRS',
+        'nGear'
+        ]
     
     lap_time = {}
     for d in drivers:
