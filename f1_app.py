@@ -63,11 +63,11 @@ year = st.sidebar.radio(
 )
 events = get_event_schedule_data(year)
 past_events = events[events['Days from Today'] < 0]
-latest_event = len(past_events) - 2
+latest_event = len(past_events) - 1
 
 gp = st.sidebar.selectbox(
     "Grand Prix",
-    [events.get_event_by_round(n).EventName for n in range(1,len(events))],
+    events.sort_values('EventDate').EventName.to_list(),
     index = latest_event
 )
 event = get_event_data(year,gp)
@@ -75,15 +75,23 @@ session = st.sidebar.selectbox(
     "Session",
     [event.get_session_name(n) for n in range(5,0,-1)]
 )
-data = get_session_data(year,gp,session)
-all_drivers = data.results.Abbreviation.unique()
-drivers = st.sidebar.multiselect(
-    "Driver(s)",
-    all_drivers,
-    default=all_drivers[0]
-)
-if len(drivers) == 0:
-    drivers = all_drivers
+try:
+    data = get_session_data(year,gp,session)
+    all_drivers = data.results.Abbreviation.unique()
+    drivers = st.sidebar.multiselect(
+        "Driver(s)",
+        all_drivers,
+        default=all_drivers[:2]
+    )
+    if len(drivers) == 0:
+        drivers = all_drivers
+
+    display_data_flag = 1
+
+except:
+    display_data_flag = 0
+    st.warning("That event hasn't happened yet or doesn't exist! Please try again!",icon="⚠️")
+
 footer="""<style>
 
 .footer {
@@ -223,81 +231,81 @@ def lap_times_plot(drivers):
 
 
 #Tabs
+if display_data_flag:
+    tab1, tab2, tab3 = st.tabs(["Results","Fastest Comparison","Lap By Lap"])
 
-tab1, tab2, tab3 = st.tabs(["Results","Fastest Comparison","Lap By Lap"])
 
+    #       Tab 1
+    with tab1:
+        # data = get_session_data()
+        results = data.results
+        st.header(f'{year} {gp} {session} Results')
+        
+        def path_to_image_html(path):
+            return '<img src="' + path + '">'
+        
+        results['Headshot'] = results['HeadshotUrl'].map(path_to_image_html)
+        results['TeamColor'] = results['TeamColor'].apply(lambda x: '#'+x)
 
-#       Tab 1
-with tab1:
-    # data = get_session_data()
-    results = data.results
-    st.header(f'{year} {gp} {session} Results')
-    
-    def path_to_image_html(path):
-        return '<img src="' + path + '">'
-    
-    results['Headshot'] = results['HeadshotUrl'].map(path_to_image_html)
-    results['TeamColor'] = results['TeamColor'].apply(lambda x: '#'+x)
+        results['Time'] = results['Time'].astype(str)
+        results['Time'] = results['Time'].apply(convert_str_date_to_time)
 
-    results['Time'] = results['Time'].astype(str)
-    results['Time'] = results['Time'].apply(convert_str_date_to_time)
+        results['Q1'] = results['Q1'].astype(str)
+        results['Q1'] = results['Q1'].apply(convert_str_date_to_time)
 
-    results['Q1'] = results['Q1'].astype(str)
-    results['Q1'] = results['Q1'].apply(convert_str_date_to_time)
+        results['Q2'] = results['Q2'].astype(str)
+        results['Q2'] = results['Q2'].apply(convert_str_date_to_time)
 
-    results['Q2'] = results['Q2'].astype(str)
-    results['Q2'] = results['Q2'].apply(convert_str_date_to_time)
+        results['Q3'] = results['Q3'].astype(str)
+        results['Q3'] = results['Q3'].apply(convert_str_date_to_time)
 
-    results['Q3'] = results['Q3'].astype(str)
-    results['Q3'] = results['Q3'].apply(convert_str_date_to_time)
+        cols = ['Headshot', 'Abbreviation','FullName',  'TeamName',]
+        if session == 'Race' or session == 'Sprint':
+            add_cols = ['ClassifiedPosition','GridPosition','Time','Status','Points']
+            for a in add_cols:
+                cols.append(a)
+        elif session == 'Qualifying':
+            add_cols = ['Q1','Q2','Q3','Time']
+            for a in add_cols:
+                cols.append(a)
 
-    cols = ['Headshot', 'Abbreviation','FullName',  'TeamName',]
-    if session == 'Race' or session == 'Sprint':
-        add_cols = ['ClassifiedPosition','GridPosition','Time','Status','Points']
-        for a in add_cols:
-            cols.append(a)
-    elif session == 'Qualifying':
-        add_cols = ['Q1','Q2','Q3','Time']
-        for a in add_cols:
-            cols.append(a)
-
-    else:
-        pass
-    
-                            
-    html = '<table>'
-    html += '<tr>'
-    for c in cols:
-        html += f'<th>{c}</th>'
-    html += '</tr>'
-    for i in range(len(results)):
+        else:
+            pass
+        
+                                
+        html = '<table>'
         html += '<tr>'
         for c in cols:
-            if c == 'TeamName':
-                html += f'<td>{results[c].iloc[i]} <div style="background-color:{results["TeamColor"].iloc[i]};width:4vw;height:1vw;align:center;"></div></td>'
-            
-            elif (c == 'Time' and i > 0 and results[c].iloc[i] != 'No Time'):
-                html += f'<td>+{results[c].iloc[i][3:]}</td>'
-
-            elif c.startswith('Q') and results[c].iloc[i] != 'No Time':
-                html += f'<td>{results[c].iloc[i][3:]}</td>'
-
-            else:
-                html += f'<td>{results[c].iloc[i]}</td>'
+            html += f'<th>{c}</th>'
         html += '</tr>'
-    
-    html += '</table>'
-    st.markdown(html,unsafe_allow_html=True)
+        for i in range(len(results)):
+            html += '<tr>'
+            for c in cols:
+                if c == 'TeamName':
+                    html += f'<td>{results[c].iloc[i]} <div style="background-color:{results["TeamColor"].iloc[i]};width:4vw;height:1vw;align:center;"></div></td>'
+                
+                elif (c == 'Time' and i > 0 and results[c].iloc[i] != 'No Time'):
+                    html += f'<td>+{results[c].iloc[i][3:]}</td>'
+
+                elif c.startswith('Q') and results[c].iloc[i] != 'No Time':
+                    html += f'<td>{results[c].iloc[i][3:]}</td>'
+
+                else:
+                    html += f'<td>{results[c].iloc[i]}</td>'
+            html += '</tr>'
+        
+        html += '</table>'
+        st.markdown(html,unsafe_allow_html=True)
 
 
-#       Tab 2
-with tab2:
-    st.header(f'{year} {gp} {session} Fastest Lap Comparison')
-    basic_plots(drivers)
+    #       Tab 2
+    with tab2:
+        st.header(f'{year} {gp} {session} Fastest Lap Comparison')
+        basic_plots(drivers)
 
-#       Tab 3
-with tab3:
-    st.header(f'{year} {gp} {session} Lap by Lap Comparison')
-    lap_times_plot(drivers)
+    #       Tab 3
+    with tab3:
+        st.header(f'{year} {gp} {session} Lap by Lap Comparison')
+        lap_times_plot(drivers)
 
     
