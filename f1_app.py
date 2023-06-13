@@ -191,8 +191,12 @@ def basic_plots(drivers):
 
     
     #Lap Time
-    lap_time = pd.DataFrame(lap_time.values(),columns=['LapTime'],index=lap_time.keys()).sort_values('LapTime')
-    st.dataframe(lap_time,use_container_width=True)
+    lap_time = pd.DataFrame(lap_time.values(),columns=['LapTime'],index=lap_time.keys()).sort_values('LapTime').reset_index()
+    lap_time.rename({'index':'Driver'},axis=1,inplace=True)
+    # st.dataframe(lap_time,use_container_width=True)
+    for i,col in enumerate(st.columns(min(len(lap_time),5))):
+        with col:
+            st.metric(label=lap_time['Driver'].iloc[i],value=f"{int(lap_time['LapTime'].iloc[i]//60)}:{round(lap_time['LapTime'].iloc[i]%60,3)}")
 
     #Plots
     for i, p in enumerate(plots):
@@ -283,12 +287,15 @@ if display_data_flag:
             for c in cols:
                 if c == 'TeamName':
                     html += f'<td>{results[c].iloc[i]} <div style="background-color:{results["TeamColor"].iloc[i]};width:4vw;height:1vw;align:center;"></div></td>'
+
+                elif (c == 'Time' and i == 0 and results[c].iloc[i] != 'No Time'):
+                    html += f'<td>{results[c].iloc[i][:-3]}</td>'
                 
                 elif (c == 'Time' and i > 0 and results[c].iloc[i] != 'No Time'):
-                    html += f'<td>+{results[c].iloc[i][3:]}</td>'
+                    html += f'<td>+{results[c].iloc[i][3:-3]}</td>'
 
                 elif c.startswith('Q') and results[c].iloc[i] != 'No Time':
-                    html += f'<td>{results[c].iloc[i][3:]}</td>'
+                    html += f'<td>{results[c].iloc[i][3:-3]}</td>'
 
                 else:
                     html += f'<td>{results[c].iloc[i]}</td>'
