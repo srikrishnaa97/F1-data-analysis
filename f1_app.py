@@ -269,7 +269,7 @@ if display_data_flag:
             for a in add_cols:
                 cols.append(a)
         elif session == 'Qualifying':
-            add_cols = ['Q1','Q2','Q3','Time']
+            add_cols = ['Q1','Q2','Q3']
             for a in add_cols:
                 cols.append(a)
 
