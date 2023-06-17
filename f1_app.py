@@ -81,7 +81,7 @@ try:
     drivers = st.sidebar.multiselect(
         "Driver(s)",
         all_drivers,
-        default=all_drivers[:2]
+        default=data.laps.groupby('Driver').LapTime.min().sort_values().reset_index()['Driver'].iloc[:2].to_list()
     )
     if len(drivers) == 0:
         drivers = all_drivers
@@ -120,6 +120,8 @@ def convert_str_date_to_time(date):
     return 'No Time'
 
 def convert_timedelta_to_time(date):
+    if pd.isnull(date):
+        return date
     out = str(date.seconds) + '.' + str(date.microseconds*1000)
     return float(out)
 
@@ -243,6 +245,14 @@ if display_data_flag:
     with tab1:
         # data = get_session_data()
         results = data.results
+        if 'Practice' in session:
+            results = pd.merge(right=data.laps.groupby('Driver').LapTime.min().sort_values().reset_index(),left=data.results,right_on='Driver',left_on='Abbreviation',how='outer')
+            results['Fastest Time'] = results['LapTime']
+            results['LapTime'] = results['LapTime'].apply(convert_timedelta_to_time)
+            results = results.sort_values('LapTime')
+            results['Fastest Time'] = results['Fastest Time'].astype(str)
+            results['Fastest Time'] = results['Fastest Time'].apply(convert_str_date_to_time)
+        
         st.header(f'{year} {gp} {session} Results')
         
         def path_to_image_html(path):
@@ -272,6 +282,9 @@ if display_data_flag:
             add_cols = ['Q1','Q2','Q3']
             for a in add_cols:
                 cols.append(a)
+        
+        elif 'Practice' in session:
+            cols.append('Fastest Time')
 
         else:
             pass
@@ -295,6 +308,9 @@ if display_data_flag:
                     html += f'<td>+{results[c].iloc[i][3:-3]}</td>'
 
                 elif c.startswith('Q') and results[c].iloc[i] != 'No Time':
+                    html += f'<td>{results[c].iloc[i][3:-3]}</td>'
+
+                elif c == 'Fastest Time' and results[c].iloc[i] != 'No Time':
                     html += f'<td>{results[c].iloc[i][3:-3]}</td>'
 
                 else:
