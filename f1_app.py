@@ -401,7 +401,6 @@ if display_data_flag:
     #       Tab 3
     with tab3:
         st.header(f'{year} {gp} {session} Track Dominance')
-        st.text(f'{fastf1.__version}')
         plot_speed_segments(drivers)
 
     #       Tab 4
