@@ -271,12 +271,13 @@ def plot_speed_segments(drivers,fastest_lap=True):
     driver_df = driver_df.sort_values('dist_segments')
     pos = pd.merge(driver_df,pos,on=['dist_segments'],how='right')
     track = pos.loc[:, ('X', 'Y')].to_numpy()
+    pos['X_unrotated'] = pos['X'].copy()
+    pos['Y_unrotated'] = pos['Y'].copy()
     rotated_track = rotate(track, angle=track_angle)
     pos['X'] = rotated_track[:, 0]
     pos['Y'] = rotated_track[:, 1]
     pos['Driver_Colors'] = pos['Driver'].map(lambda x: fastf1.plotting.driver_color(x) if isinstance(x,str) else None)
     fig = go.Figure()
-    count_plots=0
     start_pos=[]
     prev_pos=[]
     plot_pos = pd.DataFrame()
@@ -287,10 +288,13 @@ def plot_speed_segments(drivers,fastest_lap=True):
         plot_pos = pd.concat([plot_pos,sub_pos])
     
     plot_pos = plot_pos.sort_values('Distance')
-    for ds in plot_pos.dist_segments.unique():
+    for count_plots,ds in enumerate(plot_pos.dist_segments.unique()):
         plot_pos1 = plot_pos[plot_pos['dist_segments']==ds].sort_values('Distance')
         if count_plots == 0:
-            start_pos = [plot_pos['X'].iloc[0],plot_pos['Y'].iloc[0]]
+            first_segment_begin = [plot_pos1['X_unrotated'].iloc[0],plot_pos1['Y_unrotated'].iloc[0]]
+            first_segment_end = [plot_pos1['X_unrotated'].iloc[-1],plot_pos1['Y_unrotated'].iloc[-1]]
+            first_segment_angle = np.arctan((first_segment_end[1]-first_segment_begin[1])/(first_segment_end[0]-first_segment_begin[0]))
+            start_pos = [plot_pos1['X'].iloc[0],plot_pos['Y'].iloc[0]]
         else:
             plot_pos1['X'].iloc[0] = prev_pos[0]
             plot_pos1['Y'].iloc[0] = prev_pos[1]
@@ -298,7 +302,6 @@ def plot_speed_segments(drivers,fastest_lap=True):
             go.Scatter(x=plot_pos1['X'],y=plot_pos1['Y'],mode='lines',line=dict(color=fastf1.plotting.driver_color(plot_pos1['Driver'].iloc[0]),width=10),hoverinfo='skip')
         )
         fig['data'][-1]['showlegend']=False
-        count_plots += 1
         prev_pos = [plot_pos1['X'].iloc[-1],plot_pos1['Y'].iloc[-1]]
         last_driver = plot_pos1['Driver'].iloc[0]
     
@@ -332,6 +335,19 @@ def plot_speed_segments(drivers,fastest_lap=True):
             )
         fig['data'][-1]['showlegend']=False
     
+    #Add checkered flag
+    offset_vector = [500, 0] 
+    offset_angle = np.pi/2 + first_segment_angle
+    offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
+    text_x = first_segment_begin[0] + offset_x
+    text_y = first_segment_begin[1] + offset_y
+    text_x, text_y = rotate([text_x, text_y], angle=track_angle)
+    emoji = '&#127937;'
+    text = f"<span style='font-size:{20}px;'>{emoji}</span>"
+    fig.add_trace(
+                go.Scatter(x=[text_x],y=[text_y],mode='text',text=text,textposition='middle center',hoverinfo='skip',textfont=dict(size=20))
+            )
+    fig['data'][-1]['showlegend']=False
     for d in drivers:
         fig.add_trace(go.Scatter(
                     x=[None],
