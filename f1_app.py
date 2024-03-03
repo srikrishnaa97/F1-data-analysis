@@ -214,7 +214,7 @@ def basic_plots(drivers):
 def lap_times_plot(drivers):
     for d in drivers:
         df = data.laps.pick_driver(d).pick_quicklaps()
-        
+        df = pd.concat([df,data.laps.pick_driver(d).pick_box_laps()])
         df['LapTime'] = df['LapTime'].apply(convert_timedelta_to_time)
         stints = df[["Driver", "Stint", "Compound", "LapNumber"]].copy()
         stints = stints.groupby(["Driver", "Stint", "Compound"])
@@ -223,7 +223,7 @@ def lap_times_plot(drivers):
         pit_stops = df[~df.PitInTime.isna()].LapNumber.to_list()
         fig = px.scatter(df,x='LapNumber',y='LapTime',color='Compound',title=f'{d} Lap Times at the {year} {gp} {session}',color_discrete_sequence=[fastf1.plotting.COMPOUND_COLORS[n] for n in df.Compound.unique()])
         for p in pit_stops:
-            fig.add_vline(x=p,line_width=3,line_dash='dash',line_color=fastf1.plotting.driver_color(d))
+            fig.add_vline(x=p+0.5,line_width=3,line_dash='dash',line_color=fastf1.plotting.driver_color(d))
         st.plotly_chart(fig,theme="streamlit",use_container_width=True)
         # fig = px.bar(
         #         stints,
@@ -317,40 +317,20 @@ def plot_speed_segments(drivers,fastest_lap=True):
                            plot_bgcolor='rgba(0,0,0,0)',paper_bgcolor='rgba(0,0,0,0)')
     
     offset_vector = [500, 0] 
-    # Iterate over all corners.
     for _, corner in circuit_info.corners.iterrows():
-        # Create a string from corner number and letter
         txt = f"{corner['Number']}{corner['Letter']}"
-
-        # Convert the angle from degrees to radian.
         offset_angle = corner['Angle'] / 180 * np.pi
-
-        # Rotate the offset vector so that it points sideways from the track.
         offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
 
-        # Add the offset to the position of the corner
         text_x = corner['X'] + offset_x
         text_y = corner['Y'] + offset_y
 
-        # Rotate the text position equivalently to the rest of the track map
         text_x, text_y = rotate([text_x, text_y], angle=track_angle)
-
-        # Rotate the center of the corner equivalently to the rest of the track map
-        track_x, track_y = rotate([corner['X'], corner['Y']], angle=track_angle)
-
-        # Draw a circle next to the track.
-        # plt.scatter(text_x, text_y, color=circle_color, s=140)
 
         fig.add_trace(
                 go.Scatter(x=[text_x],y=[text_y],mode='text',text=txt,textposition='middle center',hoverinfo='skip',textfont=dict(size=20))
             )
         fig['data'][-1]['showlegend']=False
-        # Draw a line from the track to this circle.
-        # plt.plot([track_x, text_x], [track_y, text_y], color=line_color)
-
-        # Finally, print the corner number inside the circle.
-        # plt.text(text_x, text_y, txt,
-        #         va='center_baseline', ha='center', size='small', color=text_color)
     
     for d in drivers:
         fig.add_trace(go.Scatter(
