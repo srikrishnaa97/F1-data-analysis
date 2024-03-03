@@ -276,15 +276,35 @@ def plot_speed_segments(drivers,fastest_lap=True):
     pos['Y'] = rotated_track[:, 1]
     pos['Driver_Colors'] = pos['Driver'].map(lambda x: fastf1.plotting.driver_color(x) if isinstance(x,str) else None)
     fig = go.Figure()
+    count_plots=0
+    start_pos=[]
+    prev_pos=[]
+    plot_pos = pd.DataFrame()
     for d in driver_df.Driver.unique():
         dom_segments = driver_df[driver_df['Driver']==d]['dist_segments'].unique()
         sub_pos = pos[pos['dist_segments'].isin(dom_segments)]
-        for ds in sub_pos.dist_segments.unique():
-            plot_pos = sub_pos[sub_pos['dist_segments']==ds]
-            fig.add_trace(
-                go.Scatter(x=plot_pos['X'],y=plot_pos['Y'],mode='lines',line=dict(color=fastf1.plotting.driver_color(d),width=10),hoverinfo='skip')
+        sub_pos['Driver'] = d
+        plot_pos = pd.concat([plot_pos,sub_pos])
+    
+    plot_pos = plot_pos.sort_values('Distance')
+    for ds in plot_pos.dist_segments.unique():
+        plot_pos1 = plot_pos[plot_pos['dist_segments']==ds].sort_values('Distance')
+        if count_plots == 0:
+            start_pos = [plot_pos['X'].iloc[0],plot_pos['Y'].iloc[0]]
+        else:
+            plot_pos1['X'].iloc[0] = prev_pos[0]
+            plot_pos1['Y'].iloc[0] = prev_pos[1]
+        fig.add_trace(
+            go.Scatter(x=plot_pos1['X'],y=plot_pos1['Y'],mode='lines',line=dict(color=fastf1.plotting.driver_color(plot_pos1['Driver'].iloc[0]),width=10),hoverinfo='skip')
+        )
+        fig['data'][-1]['showlegend']=False
+        count_plots += 1
+        prev_pos = [plot_pos1['X'].iloc[-1],plot_pos1['Y'].iloc[-1]]
+    
+    fig.add_trace(
+                go.Scatter(x=[prev_pos[0],start_pos[0]],y=[prev_pos[1],start_pos[1]],mode='lines',line=dict(color=fastf1.plotting.driver_color(d),width=10),hoverinfo='skip')
             )
-            fig['data'][-1]['showlegend']=False
+    fig['data'][-1]['showlegend']=False
     title = f'Track Dominance {year} {gp} {session}'
     if fastest_lap:
         title += ' Fastest Lap Comparison'
