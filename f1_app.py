@@ -223,7 +223,7 @@ def lap_times_plot(drivers):
         pit_stops = pit_stops[~pit_stops.PitInTime.isna()].LapNumber.to_list()
         fig = px.scatter(df,x='LapNumber',y='LapTime',color='Compound',title=f'{d} Lap Times at the {year} {gp} {session}',color_discrete_sequence=[fastf1.plotting.COMPOUND_COLORS[n] for n in df.Compound.unique()])
         for p in pit_stops:
-            fig.add_vline(x=p+0.5,line_width=3,line_dash='dash',line_color=fastf1.plotting.driver_color(d))
+            fig.add_vline(x=p,line_width=3,line_dash='dash',line_color=fastf1.plotting.driver_color(d))
         st.plotly_chart(fig,theme="streamlit",use_container_width=True)
         # fig = px.bar(
         #         stints,
