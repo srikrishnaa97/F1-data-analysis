@@ -247,10 +247,11 @@ def plot_speed_segments(drivers):
     lap = data.laps.pick_fastest()
     pos = lap.get_telemetry()
     dist_segments = circuit_info.marshal_sectors.Distance.to_list()
-    first = 0
-    last = dist_segments[0]
-    dist_segments[0] = first
-    dist_segments.append(last)
+    if dist_segments[0] > dist_segments[-1]:
+        first = 0
+        last = dist_segments[0]
+        dist_segments[0] = first
+        dist_segments.append(last)
     pos['dist_segments'] = pd.cut(pos.Distance,bins=dist_segments)
     driver_df = pd.Series()
     lap_time = {}
