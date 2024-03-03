@@ -246,7 +246,7 @@ def plot_speed_segments(drivers):
     track_angle = circuit_info.rotation / 180 * np.pi
     lap = data.laps.pick_fastest()
     pos = lap.get_telemetry()
-    dist_segments = circuit_info.marshal_sectors.Distance.to_list()
+    dist_segments = circuit_info.marshal_lights.Distance.to_list()
     if dist_segments[0] > dist_segments[-1]:
         first = 0
         last = dist_segments[0]
