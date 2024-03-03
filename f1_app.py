@@ -57,7 +57,7 @@ if len(past_events) == 0:
     past_events = get_event_schedule_data(current_year-1)
     current_year -= 1
 
-year = st.sidebar.radio(
+year = st.sidebar.selectbox(
     "Year",
     np.arange(current_year,2020,-1)
 )
@@ -241,7 +241,7 @@ def rotate(xy, *, angle):
                         [-np.sin(angle), np.cos(angle)]])
     return np.matmul(xy, rot_mat)
 
-def plot_speed_segments(drivers):
+def plot_speed_segments(drivers,fastest_lap=True):
     circuit_info = data.get_circuit_info()
     track_angle = circuit_info.rotation / 180 * np.pi
     lap = data.laps.pick_fastest()
@@ -257,7 +257,10 @@ def plot_speed_segments(drivers):
     lap_time = {}
     for d in drivers:
         lap_time[d] = convert_timedelta_to_time(data.laps.pick_driver(d).pick_quicklaps().sort_values('LapTime').iloc[0]['LapTime'])
-        temp_df = data.laps.pick_driver(d).pick_fastest().get_telemetry()
+        if fastest_lap:
+            temp_df = data.laps.pick_driver(d).pick_fastest().get_telemetry()
+        else:
+            temp_df = data.laps.pick_driver(d).pick_quicklaps().get_telemetry()
         temp_df['dist_segments'] = pd.cut(temp_df.Distance,bins=dist_segments)
         temp_df = temp_df.groupby('dist_segments')['Speed'].mean().reset_index()
         temp_df['Driver'] = d
@@ -279,13 +282,54 @@ def plot_speed_segments(drivers):
         for ds in sub_pos.dist_segments.unique():
             plot_pos = sub_pos[sub_pos['dist_segments']==ds]
             fig.add_trace(
-                go.Scatter(x=plot_pos['X'],y=plot_pos['Y'],mode='lines',line=dict(color=fastf1.plotting.driver_color(d),width=10))
+                go.Scatter(x=plot_pos['X'],y=plot_pos['Y'],mode='lines',line=dict(color=fastf1.plotting.driver_color(d),width=10),hoverinfo='skip')
             )
             fig['data'][-1]['showlegend']=False
-    fig.update_layout(title=f'Track Dominance {year} {gp} {session}',xaxis=dict(visible=False),
+    title = f'Track Dominance {year} {gp} {session}'
+    if fastest_lap:
+        title += ' Fastest Lap Comparison'
+    else:
+        title += ' Throughout the Session'
+    fig.update_layout(title=title,xaxis=dict(visible=False),
                            yaxis=dict(visible=False),
                            width=900,height=900,
                            plot_bgcolor='rgba(0,0,0,0)',paper_bgcolor='rgba(0,0,0,0)')
+    
+    offset_vector = [500, 0] 
+    # Iterate over all corners.
+    for _, corner in circuit_info.corners.iterrows():
+        # Create a string from corner number and letter
+        txt = f"{corner['Number']}{corner['Letter']}"
+
+        # Convert the angle from degrees to radian.
+        offset_angle = corner['Angle'] / 180 * np.pi
+
+        # Rotate the offset vector so that it points sideways from the track.
+        offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
+
+        # Add the offset to the position of the corner
+        text_x = corner['X'] + offset_x
+        text_y = corner['Y'] + offset_y
+
+        # Rotate the text position equivalently to the rest of the track map
+        text_x, text_y = rotate([text_x, text_y], angle=track_angle)
+
+        # Rotate the center of the corner equivalently to the rest of the track map
+        track_x, track_y = rotate([corner['X'], corner['Y']], angle=track_angle)
+
+        # Draw a circle next to the track.
+        # plt.scatter(text_x, text_y, color=circle_color, s=140)
+
+        fig.add_trace(
+                go.Scatter(x=[text_x],y=[text_y],mode='text',text=txt,textposition='middle center',hoverinfo='skip',textfont=dict(size=20))
+            )
+        fig['data'][-1]['showlegend']=False
+        # Draw a line from the track to this circle.
+        # plt.plot([track_x, text_x], [track_y, text_y], color=line_color)
+
+        # Finally, print the corner number inside the circle.
+        # plt.text(text_x, text_y, txt,
+        #         va='center_baseline', ha='center', size='small', color=text_color)
     
     for d in drivers:
         fig.add_trace(go.Scatter(
@@ -401,8 +445,13 @@ if display_data_flag:
 
     #       Tab 3
     with tab3:
-        st.header(f'{year} {gp} {session} Track Dominance')
-        plot_speed_segments(drivers)
+        subtab1, subtab2 = st.tabs(["Fastest Lap","Full session"])
+        with subtab1:
+            st.header(f'{year} {gp} {session} Track Dominance Fastest Lap')
+            plot_speed_segments(drivers,fastest_lap=True)
+        with subtab2:
+            st.header(f'{year} {gp} {session} Track Dominance Full Session')
+            plot_speed_segments(drivers,fastest_lap=False)
 
     #       Tab 4
     with tab4:
