@@ -214,13 +214,13 @@ def basic_plots(drivers):
 def lap_times_plot(drivers):
     for d in drivers:
         df = data.laps.pick_driver(d).pick_quicklaps()
-        df = pd.concat([df,data.laps.pick_driver(d).pick_box_laps()])
         df['LapTime'] = df['LapTime'].apply(convert_timedelta_to_time)
         stints = df[["Driver", "Stint", "Compound", "LapNumber"]].copy()
         stints = stints.groupby(["Driver", "Stint", "Compound"])
         stints = stints.count().reset_index()
         stints = stints.rename(columns={"LapNumber": "StintLength"})
-        pit_stops = df[~df.PitInTime.isna()].LapNumber.to_list()
+        pit_stops = data.laps.pick_driver(d).pick_box_laps()
+        pit_stops = pit_stops[~pit_stops.PitInTime.isna()].LapNumber.to_list()
         fig = px.scatter(df,x='LapNumber',y='LapTime',color='Compound',title=f'{d} Lap Times at the {year} {gp} {session}',color_discrete_sequence=[fastf1.plotting.COMPOUND_COLORS[n] for n in df.Compound.unique()])
         for p in pit_stops:
             fig.add_vline(x=p+0.5,line_width=3,line_dash='dash',line_color=fastf1.plotting.driver_color(d))
