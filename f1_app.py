@@ -300,9 +300,10 @@ def plot_speed_segments(drivers,fastest_lap=True):
         fig['data'][-1]['showlegend']=False
         count_plots += 1
         prev_pos = [plot_pos1['X'].iloc[-1],plot_pos1['Y'].iloc[-1]]
+        last_driver = plot_pos1['Driver'].iloc[0]
     
     fig.add_trace(
-                go.Scatter(x=[prev_pos[0],start_pos[0]],y=[prev_pos[1],start_pos[1]],mode='lines',line=dict(color=fastf1.plotting.driver_color(d),width=10),hoverinfo='skip')
+                go.Scatter(x=[prev_pos[0],start_pos[0]],y=[prev_pos[1],start_pos[1]],mode='lines',line=dict(color=fastf1.plotting.driver_color(last_driver),width=10),hoverinfo='skip')
             )
     fig['data'][-1]['showlegend']=False
     title = f'Track Dominance {year} {gp} {session}'
