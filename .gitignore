@@ -1,2 +1,4 @@
 *.ipynb
 /f1-data-analysis
+/f1-venv
+/.ipynb_checkpoints
