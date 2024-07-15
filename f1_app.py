@@ -257,7 +257,7 @@ def lap_times_plot(drivers):
         fig.update_yaxes(
             tickformat='%M:%S.%f',
         )
-        fig.update_layout(xaxis_range=[0, data.laps.LapNumber.max()])
+        fig.update_layout(xaxis_range=[0, data.laps.LapNumber.max()+1])
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
         # fig = px.bar(
         #         stints,
