@@ -452,7 +452,7 @@ if display_data_flag:
         cols = ['Headshot', 'Abbreviation', 'FullName', 'TeamName', ]
         if session == 'Race' or session == 'Sprint':
             cols = cols + ['ClassifiedPosition', 'GridPosition', 'Time', 'Status', 'Points']
-            results['GridPosition'] = results['GridPosition'].astype(str).split('.')[0]
+            results['GridPosition'] = results['GridPosition'].astype(str).map(lambda x: x.split('.')[0])
         elif session == 'Qualifying' or session == 'Sprint Qualifying' or session == 'Sprint Shootout':
             cols = cols + ['Q1', 'Q2', 'Q3']
 
