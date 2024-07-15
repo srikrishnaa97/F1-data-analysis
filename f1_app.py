@@ -143,7 +143,7 @@ def basic_plots(drivers):
     lap_time = {}
     for d in drivers:
         driver_df = data.laps.pick_driver(d).pick_fastest().get_car_data().add_distance()
-        driver_df['Time'] = [round(n.total_seconds(), 3) for n in driver_df['Time']]
+        driver_df['Time'] = [dt.datetime(1970,1,1,0,0,0,0) + dt.timedelta(seconds=round(n.total_seconds(), 3)) for n in driver_df['Time']]
         driver_df['Driver'] = d
         df = pd.concat([df, driver_df], axis=0)
 
@@ -213,6 +213,10 @@ def basic_plots(drivers):
     for i, p in enumerate(plots):
         fig = px.line(df, x='Time', y=f'{p}', color='Driver', title=p,
                       color_discrete_sequence=[f'{fastf1.plotting.driver_color(d)}' for d in drivers])
+        
+        fig.update_xaxes(
+            tickformat='%M:%S.%f',
+        )
 
         st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
