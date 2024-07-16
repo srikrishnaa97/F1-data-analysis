@@ -2,11 +2,11 @@ import streamlit as st
 import plotly.express as px
 import fastf1
 import fastf1.plotting
+import datetime as dt
 import pandas as pd
 import numpy as np
-import datetime as dt
-from plotly.subplots import make_subplots
-import plotly.graph_objects as go
+from plot_functions import basic_plots, lap_times_plot, plot_speed_segments
+from basic_functions import convert_str_date_to_time, convert_timedelta_to_time
 
 st.set_page_config(
     page_title="F1 Data Analysis",
@@ -109,315 +109,7 @@ text-align: center;
 """
 st.sidebar.markdown(footer, unsafe_allow_html=True)
 
-
-# Functions
-
-def convert_str_date_to_time(date):
-    if date != 'NaT':
-        if not '.' in date:
-            date += '.000000'
-
-        temp = dt.datetime.strptime(date, "0 days %H:%M:%S.%f")
-        return dt.datetime.strftime(temp, "%H:%M:%S.%f")
-
-    return 'No Time'
-
-
-def convert_timedelta_to_time(date):
-    if pd.isnull(date):
-        return date
-    out = str(date.seconds) + '.' + str(date.microseconds * 1000)
-    return float(out)
-
-
-def basic_plots(drivers):
-    df = pd.DataFrame()
-    plots = [
-        'Speed',
-        # 'Distance',
-        'Throttle',
-        'DRS',
-        'nGear'
-    ]
-
-    lap_time = {}
-    for d in drivers:
-        driver_df = data.laps.pick_driver(d).pick_fastest().get_car_data().add_distance()
-        driver_df['Time'] = [dt.datetime(1970,1,1,0,0,0,0) + dt.timedelta(seconds=round(n.total_seconds(), 3)) for n in driver_df['Time']]
-        driver_df['Driver'] = d
-        df = pd.concat([df, driver_df], axis=0)
-
-        lap_time[d] = convert_timedelta_to_time(
-            data.laps.pick_driver(d).pick_quicklaps().sort_values('LapTime').iloc[0]['LapTime'])
-
-        # #Telemetry
-        # tel_df = data.laps.pick_driver(d).pick_fastest().get_telemetry()
-        # x = np.array(tel_df['X'].values)
-        # y = np.array(tel_df['Y'].values)
-        # points = np.array([x, y]).T.reshape(-1, 1, 2)
-        # segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        # shapes = [dict(
-        #     type='line',
-        #     x0=segments[i][0][0],
-        #     y0=segments[i][0][1],
-        #     x1=segments[i][1][0],
-        #     y1=segments[i][1][1],
-        #     line = dict(
-        #     width=4,
-        #     color='white'
-        #     )
-        # )
-        # for i in range(segments.shape[0])]
-        # # layout = go.Layout(
-        # #     shapes=shapes,
-        # #     title='Track'
-        # # )
-        # layout = {
-        #     'xaxis': {
-        #     # 'range': [0.2, 1],
-        #     'showgrid': False, # thin lines in the background
-        #     'zeroline': False, # thick line at x=0
-        #     'visible': False  # numbers below
-        #     },
-        #     'yaxis': {
-        #     # 'range': [0.2, 1],
-        #     'showgrid': False, # thin lines in the background
-        #     'zeroline': False, # thick line at x=0
-        #     'visible': False  # numbers below
-        #     }
-        # }
-        # data1 = go.Scatter(
-        #     x=x,
-        #     y=y,
-        #     mode='lines',
-        #     opacity=1,
-        #     marker=dict(color='red',size=4)
-        # )
-        # fig = go.Figure([data1],layout)
-        # fig.update_layout(autosize=False,width=500,height=500)
-        # st.plotly_chart(fig,theme="streamlit")
-
-    # Lap Time
-    lap_time = pd.DataFrame(lap_time.values(), columns=['LapTime'], index=lap_time.keys()).sort_values(
-        'LapTime').reset_index()
-    lap_time.rename({'index': 'Driver'}, axis=1, inplace=True)
-    # st.dataframe(lap_time,use_container_width=True)
-    for i, col in enumerate(st.columns(min(len(lap_time), 5))):
-        with col:
-            minutes = int(lap_time['LapTime'].iloc[i] // 60)
-            seconds = int(lap_time['LapTime'].iloc[i] % 60)
-            milli = int(str(lap_time['LapTime'].iloc[i]).split('.')[-1].strip())
-            st.metric(label=lap_time['Driver'].iloc[i], value=f"{minutes:>02d}:{seconds:>02d}.{milli:<03d}")
-
-    # Plots
-    for i, p in enumerate(plots):
-        fig = px.line(df, x='Time', y=f'{p}', color='Driver', title=p,
-                      color_discrete_sequence=[f'{fastf1.plotting.driver_color(d)}' for d in drivers])
-        
-        fig.update_xaxes(
-            tickformat='%M:%S.%f',
-        )
-
-        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
-
-
-def lap_times_plot(drivers):
-    for d in drivers:
-        df = data.laps.pick_driver(d).pick_accurate()
-        df['LapTime'] = df['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0,
-                                                    0)  # .astype(str).apply(convert_str_date_to_time)#.map(lambda x: dt.strptime(x,"00:%M:%S.%f"))
-        stints = df[["Driver", "Stint", "Compound", "LapNumber"]].copy()
-        stints = stints.groupby(["Driver", "Stint", "Compound"])
-        stints = stints.count().reset_index()
-        stints = stints.rename(columns={"LapNumber": "StintLength"})
-        pit_stops = data.laps.pick_driver(d).pick_box_laps()
-        pit_stops = pit_stops[~pit_stops.PitInTime.isna()].LapNumber.to_list()
-        fig = px.scatter(df, x='LapNumber', y='LapTime', color='Compound',
-                         title=f'{d} Lap Times at the {year} {gp} {session}',
-                         color_discrete_sequence=[fastf1.plotting.COMPOUND_COLORS[n] for n in df.Compound.unique()])
-        for p in pit_stops:
-            fig.add_vline(x=p, line_width=3, line_dash='dash', line_color=fastf1.plotting.driver_color(d))
-        rcm = data.race_control_messages
-        if 'YELLOW' in data.race_control_messages.Flag.unique():
-            yellow_laps = rcm[(rcm.Flag == 'YELLOW') & (rcm.Scope == 'Track')]['Lap'].unique()
-            for l in yellow_laps:
-                fig.add_annotation(
-                    x=l,  # x-coordinate of the annotation
-                    y=convert_timedelta_to_time(data.laps.pick_driver(d).pick_fastest()['LapTime']),
-                    # y-coordinate of the annotation
-                    text="&#128993;",  # text to display
-                    showarrow=False
-                )
-        if 'RED' in data.race_control_messages.Flag.unique():
-            yellow_laps = rcm[(rcm.Flag == 'RED') & (rcm.Scope == 'Track')]['Lap'].unique()
-            for l in yellow_laps:
-                fig.add_annotation(
-                    x=l,  # x-coordinate of the annotation
-                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0),
-                    # y-coordinate of the annotation
-                    text="&#128308;",  # text to display
-                    showarrow=False
-                )
-        fig.update_yaxes(
-            tickformat='%M:%S.%f',
-        )
-        fig.update_layout(xaxis_range=[0, data.laps.LapNumber.max()+1])
-        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
-        # fig = px.bar(
-        #         stints,
-        #         y='Driver',
-        #         x='StintLength',
-        #         color='Compound',
-        #         color_discrete_sequence=[fastf1.plotting.COMPOUND_COLORS[n] for n in stints.Compound.unique()],
-        #         orientation='h',
-        #         opacity=1
-        # )
-        # st.plotly_chart(fig,theme="streamlit",use_container_width=True)
-
-
-def rotate(xy, *, angle):
-    rot_mat = np.array([[np.cos(angle), np.sin(angle)],
-                        [-np.sin(angle), np.cos(angle)]])
-    return np.matmul(xy, rot_mat)
-
-
-def plot_speed_segments(drivers, fastest_lap=True):
-    circuit_info = data.get_circuit_info()
-    track_angle = circuit_info.rotation / 180 * np.pi
-    lap = data.laps.pick_fastest()
-    pos = lap.get_telemetry()
-    dist_segments = circuit_info.marshal_sectors.Distance.to_list()
-    if dist_segments[0] > dist_segments[-1]:
-        first = 0
-        last = dist_segments[0]
-        dist_segments[0] = first
-        dist_segments.append(last)
-    pos['dist_segments'] = pd.cut(pos.Distance, bins=dist_segments)
-    driver_df = pd.Series()
-    lap_time = {}
-    for d in drivers:
-        lap_time[d] = convert_timedelta_to_time(
-            data.laps.pick_driver(d).pick_quicklaps().sort_values('LapTime').iloc[0]['LapTime'])
-        if fastest_lap:
-            temp_df = data.laps.pick_driver(d).pick_fastest().get_telemetry()
-        else:
-            temp_df = data.laps.pick_driver(d).pick_quicklaps().get_telemetry()
-        temp_df['dist_segments'] = pd.cut(temp_df.Distance, bins=dist_segments)
-        temp_df = temp_df.groupby('dist_segments')['Speed'].mean().reset_index()
-        temp_df['Driver'] = d
-        driver_df = pd.concat([driver_df, temp_df])
-
-    max_speeds = driver_df.groupby('dist_segments')['Speed'].max().reset_index()
-    driver_df = pd.merge(driver_df, max_speeds, on=['dist_segments', 'Speed'], how='inner')
-    driver_df = driver_df.sort_values('dist_segments')
-    pos = pd.merge(driver_df, pos, on=['dist_segments'], how='right')
-    track = pos.loc[:, ('X', 'Y')].to_numpy()
-    pos['X_unrotated'] = pos['X'].copy()
-    pos['Y_unrotated'] = pos['Y'].copy()
-    rotated_track = rotate(track, angle=track_angle)
-    pos['X'] = rotated_track[:, 0]
-    pos['Y'] = rotated_track[:, 1]
-    pos['Driver_Colors'] = pos['Driver'].map(lambda x: fastf1.plotting.driver_color(x) if isinstance(x, str) else None)
-    fig = go.Figure()
-    start_pos = []
-    prev_pos = []
-    plot_pos = pd.DataFrame()
-    for d in driver_df.Driver.unique():
-        dom_segments = driver_df[driver_df['Driver'] == d]['dist_segments'].unique()
-        sub_pos = pos[pos['dist_segments'].isin(dom_segments)]
-        sub_pos['Driver'] = d
-        plot_pos = pd.concat([plot_pos, sub_pos])
-
-    plot_pos = plot_pos.sort_values('Distance')
-    for count_plots, ds in enumerate(plot_pos.dist_segments.unique()):
-        plot_pos1 = plot_pos[plot_pos['dist_segments'] == ds].sort_values('Distance')
-        if count_plots == 0:
-            first_segment_begin = [plot_pos1['X_unrotated'].iloc[0], plot_pos1['Y_unrotated'].iloc[0]]
-            first_segment_end = [plot_pos1['X_unrotated'].iloc[-1], plot_pos1['Y_unrotated'].iloc[-1]]
-            first_segment_angle = np.arctan(
-                (first_segment_end[1] - first_segment_begin[1]) / (first_segment_end[0] - first_segment_begin[0]))
-            start_pos = [plot_pos1['X'].iloc[0], plot_pos['Y'].iloc[0]]
-        else:
-            plot_pos1['X'].iloc[0] = prev_pos[0]
-            plot_pos1['Y'].iloc[0] = prev_pos[1]
-        fig.add_trace(
-            go.Scatter(x=plot_pos1['X'], y=plot_pos1['Y'], mode='lines',
-                       line=dict(color=fastf1.plotting.driver_color(plot_pos1['Driver'].iloc[0]), width=10),
-                       hoverinfo='skip')
-        )
-        fig['data'][-1]['showlegend'] = False
-        prev_pos = [plot_pos1['X'].iloc[-1], plot_pos1['Y'].iloc[-1]]
-        last_driver = plot_pos1['Driver'].iloc[0]
-
-    fig.add_trace(
-        go.Scatter(x=[prev_pos[0], start_pos[0]], y=[prev_pos[1], start_pos[1]], mode='lines',
-                   line=dict(color=fastf1.plotting.driver_color(last_driver), width=10), hoverinfo='skip')
-    )
-    fig['data'][-1]['showlegend'] = False
-    title = f'Track Dominance {year} {gp} {session}'
-    if fastest_lap:
-        title += ' Fastest Lap Comparison'
-    else:
-        title += ' Throughout the Session'
-    fig.update_layout(title=title, xaxis=dict(visible=False),
-                      yaxis=dict(visible=False),
-                      width=900, height=900,
-                      plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-
-    offset_vector = [500, 0]
-    for _, corner in circuit_info.corners.iterrows():
-        txt = f"{corner['Number']}{corner['Letter']}"
-        offset_angle = corner['Angle'] / 180 * np.pi
-        offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
-
-        text_x = corner['X'] + offset_x
-        text_y = corner['Y'] + offset_y
-
-        text_x, text_y = rotate([text_x, text_y], angle=track_angle)
-
-        fig.add_trace(
-            go.Scatter(x=[text_x], y=[text_y], mode='text', text=txt, textposition='middle center', hoverinfo='skip',
-                       textfont=dict(size=20))
-        )
-        fig['data'][-1]['showlegend'] = False
-
-    # Add checkered flag
-    offset_vector = [500, 0]
-    offset_angle = np.pi / 2 + first_segment_angle
-    offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
-    text_x = first_segment_begin[0] + offset_x
-    text_y = first_segment_begin[1] + offset_y
-    text_x, text_y = rotate([text_x, text_y], angle=track_angle)
-    emoji = '&#127937;'
-    text = f"<span style='font-size:{20}px;'>{emoji}</span>"
-    fig.add_trace(
-        go.Scatter(x=[text_x], y=[text_y], mode='text', text=text, textposition='middle center', hoverinfo='skip',
-                   textfont=dict(size=20))
-    )
-    fig['data'][-1]['showlegend'] = False
-    for d in drivers:
-        fig.add_trace(go.Scatter(
-            x=[None],
-            y=[None],
-            mode="lines",
-            name=d,
-            line=dict(color=fastf1.plotting.driver_color(d)),
-        ))
-        fig.update_traces(dict(showlegend=True), selector=({'name': d}))
-    lap_time = pd.DataFrame(lap_time.values(), columns=['LapTime'], index=lap_time.keys()).sort_values(
-        'LapTime').reset_index()
-    lap_time.rename({'index': 'Driver'}, axis=1, inplace=True)
-
-    if fastest_lap:
-        for i, col in enumerate(st.columns(min(len(drivers), 5))):
-            with col:
-                minutes = int(lap_time['LapTime'].iloc[i] // 60)
-                seconds = int(lap_time['LapTime'].iloc[i] % 60)
-                milli = int(str(lap_time['LapTime'].iloc[i]).split('.')[-1].strip())
-                st.metric(label=lap_time['Driver'].iloc[i], value=f"{minutes:>02d}:{seconds:>02d}.{milli:<03d}")
-                st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(drivers[i])}">{drivers[i]}</h4>',
-                            unsafe_allow_html=True)
-    st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+event_data = {'year':year,'gp':gp,'session':session}
 
 
 # Tabs
@@ -499,20 +191,40 @@ if display_data_flag:
     #       Tab 2
     with tab2:
         st.header(f'{year} {gp} {session} Fastest Lap Comparison')
-        basic_plots(drivers)
+        figs, kpi_dict = basic_plots(data,event_data,drivers)
+        for i, col in enumerate(st.columns(len(kpi_dict))):
+            with col:
+                driver = list(kpi_dict.keys())[i]
+                value = kpi_dict[driver]
+                st.metric(label=driver, value=value)
+                st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
+                            unsafe_allow_html=True)
+
+        for fig in figs:
+            st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
     #       Tab 3
     with tab3:
         subtab1, subtab2 = st.tabs(["Fastest Lap", "Full session"])
         with subtab1:
             st.header(f'{year} {gp} {session} Track Dominance Fastest Lap')
-            plot_speed_segments(drivers, fastest_lap=True)
+            fig1, kpi_dict = plot_speed_segments(data, event_data, drivers, fastest_lap=True)
+            for i, col in enumerate(st.columns(len(kpi_dict))):
+                with col:
+                    driver = list(kpi_dict.keys())[i]
+                    value = kpi_dict[driver]
+                    st.metric(label=driver, value=value)
+                    st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
+                            unsafe_allow_html=True)
+            st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
         with subtab2:
             st.header(f'{year} {gp} {session} Track Dominance Full Session')
-            plot_speed_segments(drivers, fastest_lap=False)
+            fig2, kpi_dict = plot_speed_segments(data, event_data, drivers, fastest_lap=False)
+            st.plotly_chart(fig2,theme="streamlit",use_container_width=True)
 
     #       Tab 4
     with tab4:
         st.header(f'{year} {gp} {session} Lap by Lap Comparison')
-        lap_times_plot(drivers)
-
+        figs = lap_times_plot(data,event_data,drivers)
+        for fig in figs:
+            st.plotly_chart(fig, theme="streamlit", use_container_width=True)
