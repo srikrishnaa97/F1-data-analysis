@@ -5,7 +5,8 @@ import plotly.express as px
 import fastf1.plotting
 import numpy as np
 import plotly.graph_objects as go
-
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 def basic_plots(data,event_data,drivers):
     year = event_data['year']
@@ -59,7 +60,7 @@ def lap_times_plot(data,event_data,drivers):
     session = event_data['session']
     figs = []
     for d in drivers:
-        df = data.laps.pick_driver(d).pick_accurate()
+        df = data.laps.pick_driver(d)
         df['LapTime'] = df['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0,
                                                     0)  
         stints = df[["Driver", "Stint", "Compound", "LapNumber"]].copy()
@@ -240,3 +241,92 @@ def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
             kpi_dict[lap_time['Driver'].iloc[i]] = f"{minutes:>02d}:{seconds:>02d}.{milli:<03d}"
 
     return fig, kpi_dict
+
+def track_animation(data, drivers):
+    circuit_info = data.get_circuit_info()
+    track_angle = circuit_info.rotation / 180 * np.pi
+    lap = [data.laps.pick_driver(d).pick_fastest().LapTime for d in drivers]
+
+    fig, ax = plt.subplots(figsize=(15,15))
+
+    # Corners
+    offset_vector = [300, 0]
+    for _, corner in circuit_info.corners.iterrows():
+        txt = f"{corner['Number']}{corner['Letter']}"
+        offset_angle = corner['Angle'] / 180 * np.pi
+        
+        offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
+
+        text_x = corner['X'] + offset_x
+        text_y = corner['Y'] + offset_y
+
+        text_x, text_y = rotate([text_x, text_y], angle=track_angle)
+
+        ax.annotate(txt, (text_x,text_y),color='black')
+
+    dfs = {}
+    t0 = dt.datetime(1970,1,1,0,0,0,0)
+    t1 = np.min(lap)
+    delta_t = dt.timedelta(seconds=1)
+    ts = pd.DataFrame(np.arange(t0,t1,delta_t)).rename({0: 'Time'},axis=1)
+    ts['Time'] = ts['Time'] - t0
+    offset_vector = [100, 0]
+    offset_x, offset_y = rotate(offset_vector, angle=track_angle)
+    driver_pos = pd.DataFrame()
+    for i,d in enumerate(drivers):
+        dfs[d] = data.laps.pick_driver(d).pick_fastest().get_telemetry()
+
+        track = dfs[d].loc[:, ('X', 'Y')].to_numpy()
+        dfs[d]['X_unrotated'] = dfs[d]['X'].copy()
+        dfs[d]['Y_unrotated'] = dfs[d]['Y'].copy()
+        rotated_track = rotate(track, angle=track_angle)
+        dfs[d]['X'] = rotated_track[:, 0]
+        dfs[d]['Y'] = rotated_track[:, 1]
+
+        interpolation = dfs[d]
+        interpolation['X'] = interpolation['X'] + i*offset_x
+        interpolation['Y'] = interpolation['Y'] + i*offset_y
+
+        # Store in driver pos
+        if len(driver_pos) == 0:
+            driver_pos = interpolation.drop('Speed',axis=1) 
+        else:
+            driver_pos = pd.merge(driver_pos,interpolation.drop('Speed',axis=1),on=['Time'],how='outer')
+        driver_pos.rename({'X':f'X_{d}','Y':f'Y_{d}'},axis=1,inplace=True)
+
+    # Plot animation
+    line = {}
+    scatter = {}
+    for d in drivers:
+        line[d] = ax.plot(driver_pos[f'X_{d}'].iloc[0], driver_pos[f'Y_{d}'].iloc[0], label=f'{d}', linewidth=4, color=fastf1.plotting.driver_color(d))[0]
+        scatter[d] = ax.scatter(driver_pos[f'X_{d}'].iloc[0], driver_pos[f'Y_{d}'].iloc[0], label=f'{d}', marker='o', color=fastf1.plotting.driver_color(d))
+    
+    ax.legend([line[d] for d in drivers],drivers)
+    ax.set_xlim(np.min([driver_pos[f'X_{d}'].min() for d in drivers])-500,np.max([driver_pos[f'X_{d}'].max() for d in drivers])+500)
+    ax.set_ylim(np.min([driver_pos[f'Y_{d}'].min() for d in drivers])-500,np.max([driver_pos[f'Y_{d}'].max() for d in drivers])+500)
+
+    def update(frame):
+        if frame >= len(ts):
+            data = driver_pos[driver_pos.Time <= np.min(lap)]
+        else:
+            data = driver_pos[driver_pos.Time <= ts['Time'].iloc[frame]]
+        time = data.Time.max()
+        minutes = int(time.seconds // 60)
+        seconds = int(time.seconds % 60)
+        milli = int(dt.datetime.strftime(time+t0,"%M:%S.%f").split('.')[-1].strip()[:3])
+        fig.suptitle(f"{minutes:>02d}:{seconds:>02d}:{milli:>03d}",fontsize=20)
+        for d in drivers:
+            line[d].set_xdata(data[f'X_{d}'].to_numpy())
+            line[d].set_ydata(data[f'Y_{d}'].to_numpy())
+            # if len(data) > 0:
+            scat_data = np.stack([data[f'X_{d}'].to_numpy()[-1], data[f'Y_{d}'].to_numpy()[-1]]).T
+            scatter[d].set_offsets(scat_data)
+        
+        return ((line[d], scatter[d]) for d in drivers)
+    
+    plt.axis('off')
+    x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
+    y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
+    fig.set_size_inches(15, 15*y_range/x_range)
+    ani = animation.FuncAnimation(fig=fig, func=update, frames=range(len(ts)+1), interval=100,repeat=True,repeat_delay=1000)
+    return ani

@@ -2,10 +2,11 @@ import streamlit as st
 import plotly.express as px
 import fastf1
 import fastf1.plotting
+import streamlit.components.v1 as components
 import datetime as dt
 import pandas as pd
 import numpy as np
-from plot_functions import basic_plots, lap_times_plot, plot_speed_segments
+from plot_functions import basic_plots, lap_times_plot, plot_speed_segments, track_animation
 from basic_functions import convert_str_date_to_time, convert_timedelta_to_time
 
 # fastf1.Cache.enable_cache('./cache')
@@ -119,7 +120,7 @@ event_data = {'year':year,'gp':gp,'session':session}
 
 # Tabs
 if display_data_flag:
-    tab1, tab2, tab3, tab4 = st.tabs(["Results", "Fastest Comparison", "Track Dominance", "Lap By Lap"])
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Results", "Fastest Comparison", "Track Dominance", "Lap By Lap", "Track Animation"])
 
     #       Tab 1
     with tab1:
@@ -233,3 +234,9 @@ if display_data_flag:
         figs = lap_times_plot(data,event_data,drivers)
         for fig in figs:
             st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+    
+    #       Tab 5
+    with tab5:
+        st.header(f'{year} {gp} {session} Track Animation')
+        ani = track_animation(data,drivers)
+        components.html(ani.to_jshtml(), height=1000)

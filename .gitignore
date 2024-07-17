@@ -3,4 +3,5 @@
 /.ipynb_checkpoints
 /*.ipynb
 /cache
-/__pychache__
+/__pycache__
+/example.py
