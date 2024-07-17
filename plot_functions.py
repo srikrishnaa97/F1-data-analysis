@@ -188,7 +188,7 @@ def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
                       width=900, height=900,
                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
-    offset_vector = [500, 0]
+    offset_vector = [300, 0]
     for _, corner in circuit_info.corners.iterrows():
         txt = f"{corner['Number']}{corner['Letter']}"
         offset_angle = corner['Angle'] / 180 * np.pi
