@@ -247,6 +247,7 @@ def track_animation(data, drivers):
     track_angle = circuit_info.rotation / 180 * np.pi
     lap = [data.laps.pick_driver(d).pick_fastest().LapTime for d in drivers]
 
+    plt.axis('off')
     fig, ax = plt.subplots(figsize=(15,15))
 
     # Corners
@@ -324,7 +325,6 @@ def track_animation(data, drivers):
         
         return ((line[d], scatter[d]) for d in drivers)
     
-    plt.axis('off')
     x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
     y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
     fig.set_size_inches(15, 15*y_range/x_range)
