@@ -8,6 +8,8 @@ import numpy as np
 from plot_functions import basic_plots, lap_times_plot, plot_speed_segments
 from basic_functions import convert_str_date_to_time, convert_timedelta_to_time
 
+# fastf1.Cache.enable_cache('./cache')
+# fastf1.Cache.clear_cache()
 st.set_page_config(
     page_title="F1 Data Analysis",
     page_icon="./images/favicon.png",
@@ -27,8 +29,11 @@ with col2:
     st.title('Formula 1 Data Analysis')
 
 
-@st.cache_data(ttl=2 * 3600)
+@st.cache_data(ttl=2 * 3600,max_entries=3,show_spinner='Fetching session data...')
 def get_session_data(year, gp, session):
+    # _, cache_size = fastf1.Cache.get_cache_info()
+    # if cache_size >= 3e8:
+    #     fastf1.Cache.clear_cache()
     data = fastf1.get_session(year, gp, session)
     data.load()
     return data
