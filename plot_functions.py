@@ -324,7 +324,7 @@ def track_animation(data, drivers):
             "visible": True,
             "xanchor": "right"
         },
-        "transition": {"duration": 300, "easing": "cubic-in-out"},
+        "transition": {"duration": 60, "easing": "linear-in-out"},
         "pad": {"b": 10, "t": 50},
         "len": 0.9,
         "x": 0.1,
