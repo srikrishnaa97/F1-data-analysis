@@ -266,9 +266,9 @@ if display_data_flag:
                         unsafe_allow_html=True)
         st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
         for i, col in enumerate(st.columns(3)):
-                with col:
-                    if i == 1:
-                        st.plotly_chart(fig, theme="streamlit", use_container_width=False)
-                    else:
-                        pass
+            with col:
+                if i == 1:
+                    st.plotly_chart(fig, theme="streamlit", use_container_width=False)
+                else:
+                    pass
         st.plotly_chart(fig3, theme="streamlit", use_container_width=True)
