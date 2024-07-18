@@ -391,6 +391,17 @@ def track_animation(data, drivers):
     fig_dict["layout"]["sliders"] = [sliders_dict]
     fig = go.Figure(fig_dict)
 
+    # Legend 
+    for d in drivers:
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            name=d,
+            marker=dict(color=fastf1.plotting.driver_color(d), size=10),
+        ))
+        fig.update_traces(dict(showlegend=True), selector=({'name': d}))
+
     # Corners
     offset_vector = [300, 0]
     for _, corner in circuit_info.corners.iterrows():
