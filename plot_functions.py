@@ -133,7 +133,6 @@ def lap_times_plot(data,drivers):
             marker=dict(color=fastf1.plotting.COMPOUND_COLORS[com])),
             row=1,col=1
         )
-        fig.update_traces(dict(showlegend=True), selector=({'name': d}))
         
     fig.update_layout(xaxis_range=[0, data.laps.LapNumber.max()+1],height=500*len(drivers))
     
