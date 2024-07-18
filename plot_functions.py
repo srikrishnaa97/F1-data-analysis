@@ -405,9 +405,8 @@ def track_animation(data, drivers):
 
         fig.add_trace(
             go.Scatter(x=[text_x], y=[text_y], mode='text', text=txt, textposition='middle center', hoverinfo='skip',
-                       textfont=dict(size=20))
+                       textfont=dict(size=20),showlegend=False)
         )
-        fig['data'][-1]['showlegend'] = False
     
     #Checkered flag
     offset_angle = np.pi / 2 + first_segment_angle
@@ -419,12 +418,14 @@ def track_animation(data, drivers):
     text = f"<span style='font-size:{20}px;'>{emoji}</span>"
     fig.add_trace(
         go.Scatter(x=[text_x], y=[text_y], mode='text', text=text, textposition='middle center', hoverinfo='skip',
-                   textfont=dict(size=20))
+                   textfont=dict(size=20),showlegend=False)
     )
-    fig['data'][-1]['showlegend'] = False
-
+    x_range = np.max([driver_pos[f'X_{d}'].max() for d in drivers])+500 - (np.min([driver_pos[f'X_{d}'].min() for d in drivers])-500)
+    y_range = np.max([driver_pos[f'Y_{d}'].max() for d in drivers])+500 - (np.min([driver_pos[f'Y_{d}'].min() for d in drivers])-500)
+    h_by_w = y_range / x_range
     fig.update_layout(
-        width=900, height=900,
+        width=900, 
+        height=900*h_by_w,
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
     
     
