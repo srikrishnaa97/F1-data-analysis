@@ -269,7 +269,7 @@ if display_data_flag:
         for i, col in enumerate(st.columns(2)):
             with col:
                 if i == 0:
-                    st.plotly_chart(fig, theme="streamlit", use_container_width=False)
+                    st.plotly_chart(fig2, theme="streamlit", use_container_width=False)
                 else:
                     pass
         st.plotly_chart(fig3, theme="streamlit", use_container_width=True)
