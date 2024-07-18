@@ -181,11 +181,11 @@ def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
     else:
         title += ' Throughout the Session'
     
-    x_range = plot_pos1[f'X'].max()+500 - (plot_pos1[f'X'].min()-500)
-    y_range = plot_pos1['Y'].max()+500 - (plot_pos1['Y'].min()-500)
+    x_range = pos['X'].max()+500 - (pos['X'].min()-500)
+    y_range = pos['Y'].max()+500 - (pos['Y'].min()-500)
     h_by_w = y_range / x_range
-    fig.update_layout(title=title, xaxis=dict(visible=False, range = [plot_pos1[f'X'].min()-500,plot_pos1[f'X'].max()+500]),
-                      yaxis=dict(visible=False, range = [plot_pos1['Y'].min()-500,plot_pos1['Y'].max()+500]),
+    fig.update_layout(title=title, xaxis=dict(visible=False, range = [pos[f'X'].min()-500,pos[f'X'].max()+500]),
+                      yaxis=dict(visible=False, range = [pos['Y'].min()-500,pos['Y'].max()+500]),
                       width=1000, height=1000*h_by_w,
                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
