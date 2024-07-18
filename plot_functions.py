@@ -424,8 +424,8 @@ def track_animation(data, drivers):
     y_range = np.max([driver_pos[f'Y_{d}'].max() for d in drivers])+500 - (np.min([driver_pos[f'Y_{d}'].min() for d in drivers])-500)
     h_by_w = y_range / x_range
     fig.update_layout(
-        width=900, 
-        height=900*h_by_w,
+        width=1500, 
+        height=1500*h_by_w,
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
     
     
