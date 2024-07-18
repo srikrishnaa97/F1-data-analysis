@@ -166,25 +166,27 @@ def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
         fig.add_trace(
             go.Scatter(x=plot_pos1['X'], y=plot_pos1['Y'], mode='lines',
                        line=dict(color=fastf1.plotting.driver_color(plot_pos1['Driver'].iloc[0]), width=10),
-                       hoverinfo='skip')
+                       hoverinfo='skip',showlegend=False)
         )
-        fig['data'][-1]['showlegend'] = False
         prev_pos = [plot_pos1['X'].iloc[-1], plot_pos1['Y'].iloc[-1]]
         last_driver = plot_pos1['Driver'].iloc[0]
 
     fig.add_trace(
         go.Scatter(x=[prev_pos[0], start_pos[0]], y=[prev_pos[1], start_pos[1]], mode='lines',
-                   line=dict(color=fastf1.plotting.driver_color(last_driver), width=10), hoverinfo='skip')
+                   line=dict(color=fastf1.plotting.driver_color(last_driver), width=10), hoverinfo='skip',showlegend=False)
     )
-    fig['data'][-1]['showlegend'] = False
     title = f'Track Dominance {year} {gp} {session}'
     if fastest_lap:
         title += ' Fastest Lap Comparison'
     else:
         title += ' Throughout the Session'
-    fig.update_layout(title=title, xaxis=dict(visible=False),
-                      yaxis=dict(visible=False),
-                      width=900, height=900,
+    
+    x_range = plot_pos1[f'X'].max()+500 - (plot_pos1[f'X'].min()-500)
+    y_range = plot_pos1['Y'].max()+500 - (plot_pos1['Y'].min()-500)
+    h_by_w = y_range / x_range
+    fig.update_layout(title=title, xaxis=dict(visible=False, range = [plot_pos1[f'X'].min()-500,plot_pos1[f'X'].max()+500]),
+                      yaxis=dict(visible=False, range = [plot_pos1['Y'].min()-500,plot_pos1['Y'].max()+500]),
+                      width=1000, height=1000*h_by_w,
                       plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
 
     offset_vector = [300, 0]
@@ -214,9 +216,8 @@ def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
     text = f"<span style='font-size:{20}px;'>{emoji}</span>"
     fig.add_trace(
         go.Scatter(x=[text_x], y=[text_y], mode='text', text=text, textposition='middle center', hoverinfo='skip',
-                   textfont=dict(size=20))
+                   textfont=dict(size=20),showlegend=False)
     )
-    fig['data'][-1]['showlegend'] = False
     for d in drivers:
         fig.add_trace(go.Scatter(
             x=[None],
