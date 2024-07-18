@@ -245,9 +245,9 @@ if display_data_flag:
     with tab5:
         st.header(f'{year} {gp} {session} Track Animation')
         fig = track_animation(data,drivers)
-        for i, col in enumerate(st.columns(3)):
+        for i, col in enumerate(st.columns(2)):
                 with col:
-                    if i == 1:
+                    if i == 0:
                         st.plotly_chart(fig, theme="streamlit", use_container_width=False)
                     else:
                         pass
@@ -265,9 +265,9 @@ if display_data_flag:
                 st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
                         unsafe_allow_html=True)
         st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
-        for i, col in enumerate(st.columns(3)):
+        for i, col in enumerate(st.columns(2)):
             with col:
-                if i == 1:
+                if i == 0:
                     st.plotly_chart(fig, theme="streamlit", use_container_width=False)
                 else:
                     pass
