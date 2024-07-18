@@ -207,7 +207,6 @@ def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
         fig['data'][-1]['showlegend'] = False
 
     # Add checkered flag
-    offset_vector = [500, 0]
     offset_angle = np.pi / 2 + first_segment_angle
     offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
     text_x = first_segment_begin[0] + offset_x
@@ -247,24 +246,6 @@ def track_animation(data, drivers):
     track_angle = circuit_info.rotation / 180 * np.pi
     lap = [data.laps.pick_driver(d).pick_fastest().LapTime for d in drivers]
 
-    plt.axis('off')
-    fig, ax = plt.subplots(figsize=(15,15))
-
-    # Corners
-    offset_vector = [300, 0]
-    for _, corner in circuit_info.corners.iterrows():
-        txt = f"{corner['Number']}{corner['Letter']}"
-        offset_angle = corner['Angle'] / 180 * np.pi
-        
-        offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
-
-        text_x = corner['X'] + offset_x
-        text_y = corner['Y'] + offset_y
-
-        text_x, text_y = rotate([text_x, text_y], angle=track_angle)
-
-        ax.annotate(txt, (text_x,text_y),color='black')
-
     dfs = {}
     t0 = dt.datetime(1970,1,1,0,0,0,0)
     t1 = np.min(lap)
@@ -288,6 +269,10 @@ def track_animation(data, drivers):
         interpolation['X'] = interpolation['X'] + i*offset_x
         interpolation['Y'] = interpolation['Y'] + i*offset_y
 
+        if i == 0: 
+            first_segment_begin = [interpolation['X_unrotated'].iloc[0],interpolation['Y_unrotated'].iloc[0]]
+            first_segment_angle = np.arctan((interpolation['Y_unrotated'].iloc[3]-interpolation['Y_unrotated'].iloc[0])/interpolation['X_unrotated'].iloc[3]-interpolation['Y_unrotated'].iloc[0])
+
         # Store in driver pos
         if len(driver_pos) == 0:
             driver_pos = interpolation.drop('Speed',axis=1) 
@@ -295,38 +280,154 @@ def track_animation(data, drivers):
             driver_pos = pd.merge(driver_pos,interpolation.drop('Speed',axis=1),on=['Time'],how='outer')
         driver_pos.rename({'X':f'X_{d}','Y':f'Y_{d}'},axis=1,inplace=True)
 
-    # Plot animation
-    line = {}
-    scatter = {}
-    for d in drivers:
-        line[d] = ax.plot(driver_pos[f'X_{d}'].iloc[0], driver_pos[f'Y_{d}'].iloc[0], label=f'{d}', linewidth=4, color=fastf1.plotting.driver_color(d))[0]
-        scatter[d] = ax.scatter(driver_pos[f'X_{d}'].iloc[0], driver_pos[f'Y_{d}'].iloc[0], label=f'{d}', marker='o', color=fastf1.plotting.driver_color(d))
+    fig_dict = {
+    "data": [],
+    "layout": {},
+    "frames": []
+    }
+    fig_dict["layout"]["xaxis"] = {"visible": False, "range": [np.min([driver_pos[f'X_{d}'].min() for d in drivers])-500,np.max([driver_pos[f'X_{d}'].max() for d in drivers])+500], "title": ""}
+    fig_dict["layout"]["yaxis"] = {"visible": False, "range": [np.min([driver_pos[f'Y_{d}'].min() for d in drivers])-500,np.max([driver_pos[f'Y_{d}'].max() for d in drivers])+500], "title": ""}
+    fig_dict["layout"]["updatemenus"] = [
+        {
+            "buttons": [
+                {
+                    "args": [None, {"frame": {"duration": 60, "redraw": False},
+                                    "fromcurrent": True, "transition": {"duration": 60,
+                                                                        "easing": "linear-in-out"}}],
+                    "label": "Play",
+                    "method": "animate"
+                },
+                {
+                    "args": [[None], {"frame": {"duration": 0, "redraw": False},
+                                    "mode": "immediate",
+                                    "transition": {"duration": 0}}],
+                    "label": "Pause",
+                    "method": "animate"
+                }
+            ],
+            "direction": "left",
+            "pad": {"r": 10, "t": 87},
+            "showactive": False,
+            "type": "buttons",
+            "x": 0.1,
+            "xanchor": "right",
+            "y": 0,
+            "yanchor": "top"
+        }
+    ]
+    sliders_dict = {
+        "active": 0,
+        "yanchor": "top",
+        "xanchor": "left",
+        "currentvalue": {
+            "font": {"size": 20},
+            "prefix": "Time:",
+            "visible": True,
+            "xanchor": "right"
+        },
+        "transition": {"duration": 300, "easing": "cubic-in-out"},
+        "pad": {"b": 10, "t": 50},
+        "len": 0.9,
+        "x": 0.1,
+        "y": 0,
+        "steps": []
+    }
+    # make data
+    data_dict = {
+        "x": list(driver_pos[f"X_{drivers[0]}"]),
+        "y": list(driver_pos[f"Y_{drivers[0]}"]),
+        "mode": "lines",
+        "line": {"width":20, "color":'rgba(128,128,128,0.1)'},
+        "name": "Track",
+        "showlegend": False
+    }
+    fig_dict["data"].append(data_dict)
     
-    ax.legend([line[d] for d in drivers],drivers)
-    ax.set_xlim(np.min([driver_pos[f'X_{d}'].min() for d in drivers])-500,np.max([driver_pos[f'X_{d}'].max() for d in drivers])+500)
-    ax.set_ylim(np.min([driver_pos[f'Y_{d}'].min() for d in drivers])-500,np.max([driver_pos[f'Y_{d}'].max() for d in drivers])+500)
-
-    def update(frame):
-        if frame >= len(ts):
-            data = driver_pos[driver_pos.Time <= np.min(lap)]
-        else:
-            data = driver_pos[driver_pos.Time <= ts['Time'].iloc[frame]]
-        time = data.Time.max()
+    
+    # make frames
+    times = list(np.arange(t0,t1,delta_t)) 
+    times.append(t1+t0)
+    for time in times: 
+        time = pd.to_datetime(time) - pd.to_datetime(t0)
         minutes = int(time.seconds // 60)
         seconds = int(time.seconds % 60)
         milli = int(dt.datetime.strftime(time+t0,"%M:%S.%f").split('.')[-1].strip()[:3])
-        fig.suptitle(f"{minutes:>02d}:{seconds:>02d}:{milli:>03d}",fontsize=20)
+        frame = {"data": [], "name": f"{minutes:>02d}:{seconds:>02d}:{milli:>03d}"}
         for d in drivers:
-            line[d].set_xdata(data[f'X_{d}'].to_numpy())
-            line[d].set_ydata(data[f'Y_{d}'].to_numpy())
-            # if len(data) > 0:
-            scat_data = np.stack([data[f'X_{d}'].to_numpy()[-1], data[f'Y_{d}'].to_numpy()[-1]]).T
-            scatter[d].set_offsets(scat_data)
+            data = driver_pos[driver_pos.Time <= time][["Time",f"X_{d}",f"Y_{d}"]]
+            data_dict = {
+                "x": list(driver_pos[f"X_{drivers[0]}"]),
+                "y": list(driver_pos[f"Y_{drivers[0]}"]),
+                "mode": "lines",
+                "line": {"width":20, "color":'rgba(128,128,128,0.1)'},
+                "name": "Track",
+                "showlegend": False
+            }
+            frame["data"].append(data_dict)
+            data_dict = {
+                "x": [data.sort_values('Time',ascending=False).dropna()[f"X_{d}"].iloc[0]],
+                "y": [data.sort_values('Time',ascending=False).dropna()[f"Y_{d}"].iloc[0]],
+                "mode": "markers",
+                "marker": {
+                    "size": 10,
+                    "color":fastf1.plotting.driver_color(d)
+                },
+                "name": d
+            }
+            frame["data"].append(data_dict)
+        fig_dict["frames"].append(frame)
+
+        # Update slider
+        slider_step = {"args": [
+            [f"{minutes:>02d}:{seconds:>02d}:{milli:>03d}"],
+            {"frame": {"duration": 60, "redraw": False},
+            "mode": "immediate",
+            "transition": {"duration": 60}}
+            ],
+            "label": f"{minutes:>02d}:{seconds:>02d}:{milli:>03d}",
+            "method": "animate"}
+        sliders_dict["steps"].append(slider_step)
+
+
+    fig_dict["layout"]["sliders"] = [sliders_dict]
+    fig = go.Figure(fig_dict)
+
+    # Corners
+    offset_vector = [300, 0]
+    for _, corner in circuit_info.corners.iterrows():
+        txt = f"{corner['Number']}{corner['Letter']}"
+        offset_angle = corner['Angle'] / 180 * np.pi
         
-        return ((line[d], scatter[d]) for d in drivers)
+        offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
+
+        text_x = corner['X'] + offset_x
+        text_y = corner['Y'] + offset_y
+
+        text_x, text_y = rotate([text_x, text_y], angle=track_angle)
+
+        fig.add_trace(
+            go.Scatter(x=[text_x], y=[text_y], mode='text', text=txt, textposition='middle center', hoverinfo='skip',
+                       textfont=dict(size=20))
+        )
+        fig['data'][-1]['showlegend'] = False
     
-    x_range = ax.get_xlim()[1] - ax.get_xlim()[0]
-    y_range = ax.get_ylim()[1] - ax.get_ylim()[0]
-    fig.set_size_inches(15, 15*y_range/x_range)
-    ani = animation.FuncAnimation(fig=fig, func=update, frames=range(len(ts)+1), interval=100,repeat=True,repeat_delay=1000)
-    return ani
+    #Checkered flag
+    offset_angle = np.pi / 2 + first_segment_angle
+    offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
+    text_x = first_segment_begin[0] + offset_x
+    text_y = first_segment_begin[1] + offset_y
+    text_x, text_y = rotate([text_x, text_y], angle=track_angle)
+    emoji = '&#127937;'
+    text = f"<span style='font-size:{20}px;'>{emoji}</span>"
+    fig.add_trace(
+        go.Scatter(x=[text_x], y=[text_y], mode='text', text=text, textposition='middle center', hoverinfo='skip',
+                   textfont=dict(size=20))
+    )
+    fig['data'][-1]['showlegend'] = False
+
+    fig.update_layout(
+        width=900, height=900,
+        plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
+    
+    
+    return fig

@@ -238,5 +238,5 @@ if display_data_flag:
     #       Tab 5
     with tab5:
         st.header(f'{year} {gp} {session} Track Animation')
-        ani = track_animation(data,drivers)
-        components.html(ani.to_jshtml(), height=1000)
+        fig = track_animation(data,drivers)
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
