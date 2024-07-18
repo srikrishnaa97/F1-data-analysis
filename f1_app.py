@@ -226,7 +226,7 @@ if display_data_flag:
             
             for i, col in enumerate(st.columns(2)):
                 with col:
-                    if i == 1:
+                    if i == 0:
                         st.plotly_chart(fig1, theme="streamlit", use_container_width=False)
                     else:
                         pass
@@ -248,7 +248,7 @@ if display_data_flag:
         fig = track_animation(data,drivers)
         for i, col in enumerate(st.columns(2)):
                 with col:
-                    if i == 1:
+                    if i == 0:
                         st.plotly_chart(fig, theme="streamlit", use_container_width=False)
                     else:
                         pass
