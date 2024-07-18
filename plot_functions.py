@@ -5,8 +5,6 @@ import plotly.express as px
 import fastf1.plotting
 import numpy as np
 import plotly.graph_objects as go
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
 
 def basic_plots(data,event_data,drivers):
     year = event_data['year']

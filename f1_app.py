@@ -90,10 +90,11 @@ try:
     drivers = st.sidebar.multiselect(
         "Driver(s)",
         all_drivers,
-        default=data.laps.groupby('Driver').LapTime.min().sort_values().reset_index()['Driver'].iloc[:2].to_list()
+        default=data.laps.groupby('Driver').LapTime.min().sort_values().reset_index()['Driver'].iloc[:2].to_list(),
+        max_selections=3
     )
     if len(drivers) == 0:
-        drivers = all_drivers
+        drivers = all_drivers[:3]
 
     display_data_flag = 1
 
@@ -222,11 +223,17 @@ if display_data_flag:
                     st.metric(label=driver, value=value)
                     st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
                             unsafe_allow_html=True)
-            st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
+            
+            for i, col in enumerate(st.columns(3)):
+                with col:
+                    if i == 1:
+                        st.plotly_chart(fig1, theme="streamlit", use_container_width=False)
+                    else:
+                        pass
         with subtab2:
             st.header(f'{year} {gp} {session} Track Dominance Full Session')
             fig2, kpi_dict = plot_speed_segments(data, event_data, drivers, fastest_lap=False)
-            st.plotly_chart(fig2,theme="streamlit",use_container_width=True)
+            st.plotly_chart(fig2,theme="streamlit",use_container_width=False)
 
     #       Tab 4
     with tab4:
@@ -239,4 +246,9 @@ if display_data_flag:
     with tab5:
         st.header(f'{year} {gp} {session} Track Animation')
         fig = track_animation(data,drivers)
-        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+        for i, col in enumerate(st.columns(3)):
+                with col:
+                    if i == 1:
+                        st.plotly_chart(fig, theme="streamlit", use_container_width=False)
+                    else:
+                        pass
