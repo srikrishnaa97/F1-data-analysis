@@ -5,11 +5,9 @@ import plotly.express as px
 import fastf1.plotting
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-def basic_plots(data,event_data,drivers):
-    year = event_data['year']
-    gp = event_data['gp']
-    session = event_data['session']
+def basic_plots(data,drivers):
     df = pd.DataFrame()
     plots = [
         'Speed',
@@ -21,7 +19,8 @@ def basic_plots(data,event_data,drivers):
     lap_time = {}
     for d in drivers:
         driver_df = data.laps.pick_driver(d).pick_fastest().get_car_data().add_distance()
-        driver_df['Time'] = [dt.datetime(1970,1,1,0,0,0,0) + dt.timedelta(seconds=round(n.total_seconds(), 3)) for n in driver_df['Time']]
+        driver_df['Time'] = driver_df['Time'] + pd.to_datetime("1970-01-01 00:00:00.000",format="%Y-%m-%d %H:%M:%S.%f") #dt.datetime(1970,1,1,0,0,0,0)
+        driver_df['Time'] = driver_df['Time'].apply(lambda x: x.to_pydatetime())
         driver_df['Driver'] = d
         df = pd.concat([df, driver_df], axis=0)
 
@@ -41,23 +40,40 @@ def basic_plots(data,event_data,drivers):
         kpi_dict[lap_time['Driver'].iloc[i]] = f"{minutes:>02d}:{seconds:>02d}.{milli:<03d}"
 
     # Plots
-    figs = []
+    fig = make_subplots(rows=len(plots),cols=1,vertical_spacing=0.1,row_heights=[500]*len(plots),subplot_titles=plots)
     for i, p in enumerate(plots):
-        fig = px.line(df, x='Time', y=f'{p}', color='Driver', title=p,
-                      color_discrete_sequence=[f'{fastf1.plotting.driver_color(d)}' for d in drivers])
-        
+        for d in drivers:
+            subdf = df[df['Driver']==d]#.sort_values('Time')
+            fig.add_trace(
+                go.Scatter(
+                    x=subdf['Time'].to_numpy(),
+                    y=subdf[p].to_numpy(),
+                    mode="lines",
+                    line=dict(
+                        color=fastf1.plotting.driver_color(d)
+                    ),
+                    showlegend=False,
+                    name=f"{d},{p}"
+                ),
+                row=i+1,
+                col=1
+            )
         fig.update_xaxes(
-            tickformat='%M:%S.%f',
+            tickformat="%M:%S.%f",
+            row=i+1,
+            col=1
         )
-        figs.append(fig)
-    return figs, kpi_dict
+        
+    fig.update_layout(
+        height=300*len(plots),
+    )
+    return fig, kpi_dict
 
-def lap_times_plot(data,event_data,drivers):
-    year = event_data['year']
-    gp = event_data['gp']
-    session = event_data['session']
-    figs = []
-    for d in drivers:
+def lap_times_plot(data,drivers):
+    # figs = []
+    fig = make_subplots(rows=len(drivers),cols=1,shared_xaxes=True,vertical_spacing=0.2,row_heights=[500]*len(drivers))
+    coms = []
+    for i,d in enumerate(drivers):
         df = data.laps.pick_driver(d)
         df['LapTime'] = df['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0,
                                                     0)  
@@ -67,11 +83,17 @@ def lap_times_plot(data,event_data,drivers):
         stints = stints.rename(columns={"LapNumber": "StintLength"})
         pit_stops = data.laps.pick_driver(d).pick_box_laps()
         pit_stops = pit_stops[~pit_stops.PitInTime.isna()].LapNumber.to_list()
-        fig = px.scatter(df, x='LapNumber', y='LapTime', color='Compound',
-                         title=f'{d} Lap Times at the {year} {gp} {session}',
-                         color_discrete_sequence=[fastf1.plotting.COMPOUND_COLORS[n] for n in df.Compound.unique()])
+        for com in df.Compound.unique():
+            subdata = df[df['Compound']==com]
+            fig.add_trace(
+                go.Scatter(x=subdata['LapNumber'].to_numpy(), y=subdata['LapTime'].to_numpy(),mode="markers",marker=dict(color=fastf1.plotting.COMPOUND_COLORS[com]),
+                           showlegend=False,name=d),
+                row=i+1,
+                col=1,
+            )
+            coms.append(com)
         for p in pit_stops:
-            fig.add_vline(x=p, line_width=3, line_dash='dash', line_color=fastf1.plotting.driver_color(d))
+            fig.add_vline(x=p, line_width=3, line_dash='dash', line_color=fastf1.plotting.driver_color(d), row=i+1, col=1)
         rcm = data.race_control_messages
         if 'YELLOW' in data.race_control_messages.Flag.unique():
             yellow_laps = rcm[(rcm.Flag == 'YELLOW') & (rcm.Scope == 'Track')]['Lap'].unique()
@@ -81,7 +103,9 @@ def lap_times_plot(data,event_data,drivers):
                     y=convert_timedelta_to_time(data.laps.pick_driver(d).pick_fastest()['LapTime']),
                     # y-coordinate of the annotation
                     text="&#128993;",  # text to display
-                    showarrow=False
+                    showarrow=False,
+                    row = i+1,
+                    col = 1
                 )
         if 'RED' in data.race_control_messages.Flag.unique():
             yellow_laps = rcm[(rcm.Flag == 'RED') & (rcm.Scope == 'Track')]['Lap'].unique()
@@ -91,20 +115,31 @@ def lap_times_plot(data,event_data,drivers):
                     y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0),
                     # y-coordinate of the annotation
                     text="&#128308;",  # text to display
-                    showarrow=False
+                    showarrow=False,
+                    row = i+1,
+                    col = 1
                 )
         fig.update_yaxes(
             tickformat='%M:%S.%f',
+            row=i+1,
+            col=1
         )
-        fig.update_layout(xaxis_range=[0, data.laps.LapNumber.max()+1])
-        figs.append(fig)
+    for com in set(coms):
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            name=com,
+            marker=dict(color=fastf1.plotting.COMPOUND_COLORS[com])),
+            row=1,col=1
+        )
+        fig.update_traces(dict(showlegend=True), selector=({'name': d}))
+        
+    fig.update_layout(xaxis_range=[0, data.laps.LapNumber.max()+1],height=500*len(drivers))
     
-    return figs
+    return fig
 
-def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
-    year = event_data['year']
-    gp = event_data['gp']
-    session = event_data['session']
+def plot_speed_segments(data, drivers, fastest_lap=True):
     circuit_info = data.get_circuit_info()
     track_angle = circuit_info.rotation / 180 * np.pi
     lap = data.laps.pick_fastest()
@@ -175,11 +210,11 @@ def plot_speed_segments(data, event_data, drivers, fastest_lap=True):
         go.Scatter(x=[prev_pos[0], start_pos[0]], y=[prev_pos[1], start_pos[1]], mode='lines',
                    line=dict(color=fastf1.plotting.driver_color(last_driver), width=10), hoverinfo='skip',showlegend=False)
     )
-    title = f'Track Dominance {year} {gp} {session}'
+
     if fastest_lap:
-        title += ' Fastest Lap Comparison'
+        title = 'Fastest Lap Comparison'
     else:
-        title += ' Throughout the Session'
+        title = 'Throughout the Session'
     
     x_range = pos['X'].max()+500 - (pos['X'].min()-500)
     y_range = pos['Y'].max()+500 - (pos['Y'].min()-500)
@@ -442,3 +477,10 @@ def track_animation(data, drivers):
     
     
     return fig
+
+def telemetry(data,drivers):
+    lap_times_fig = lap_times_plot(data,drivers)
+    track_animation_fig = track_animation(data,drivers)
+    telemetry_fig, kpi_dict = basic_plots(data,drivers)
+
+    return lap_times_fig, track_animation_fig, telemetry_fig, kpi_dict

@@ -6,7 +6,7 @@ import streamlit.components.v1 as components
 import datetime as dt
 import pandas as pd
 import numpy as np
-from plot_functions import basic_plots, lap_times_plot, plot_speed_segments, track_animation
+from plot_functions import basic_plots, lap_times_plot, plot_speed_segments, track_animation, telemetry
 from basic_functions import convert_str_date_to_time, convert_timedelta_to_time
 
 # fastf1.Cache.enable_cache('./cache')
@@ -121,7 +121,7 @@ event_data = {'year':year,'gp':gp,'session':session}
 
 # Tabs
 if display_data_flag:
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Results", "Fastest Comparison", "Track Dominance", "Lap By Lap", "Track Animation"])
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Results", "Fastest Comparison", "Track Dominance", "Lap By Lap", "Track Animation", "Telemetry"])
 
     #       Tab 1
     with tab1:
@@ -198,7 +198,7 @@ if display_data_flag:
     #       Tab 2
     with tab2:
         st.header(f'{year} {gp} {session} Fastest Lap Comparison')
-        figs, kpi_dict = basic_plots(data,event_data,drivers)
+        fig, kpi_dict = basic_plots(data,drivers)
         for i, col in enumerate(st.columns(len(kpi_dict))):
             with col:
                 driver = list(kpi_dict.keys())[i]
@@ -207,15 +207,14 @@ if display_data_flag:
                 st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
                             unsafe_allow_html=True)
 
-        for fig in figs:
-            st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
 
     #       Tab 3
     with tab3:
         subtab1, subtab2 = st.tabs(["Fastest Lap", "Full session"])
         with subtab1:
             st.header(f'{year} {gp} {session} Track Dominance Fastest Lap')
-            fig1, kpi_dict = plot_speed_segments(data, event_data, drivers, fastest_lap=True)
+            fig1, kpi_dict = plot_speed_segments(data, drivers, fastest_lap=True)
             for i, col in enumerate(st.columns(len(kpi_dict))):
                 with col:
                     driver = list(kpi_dict.keys())[i]
@@ -232,23 +231,44 @@ if display_data_flag:
                         pass
         with subtab2:
             st.header(f'{year} {gp} {session} Track Dominance Full Session')
-            fig2, kpi_dict = plot_speed_segments(data, event_data, drivers, fastest_lap=False)
+            fig2, kpi_dict = plot_speed_segments(data, drivers, fastest_lap=False)
             st.plotly_chart(fig2,theme="streamlit",use_container_width=False)
 
     #       Tab 4
     with tab4:
         st.header(f'{year} {gp} {session} Lap by Lap Comparison')
-        figs = lap_times_plot(data,event_data,drivers)
-        for fig in figs:
-            st.plotly_chart(fig, theme="streamlit", use_container_width=True)
+        fig = lap_times_plot(data,drivers)
+        # for fig in figs:
+        st.plotly_chart(fig, theme="streamlit", use_container_width=True)
     
     #       Tab 5
     with tab5:
         st.header(f'{year} {gp} {session} Track Animation')
         fig = track_animation(data,drivers)
-        for i, col in enumerate(st.columns(2)):
+        for i, col in enumerate(st.columns(3)):
                 with col:
-                    if i == 0:
+                    if i == 1:
                         st.plotly_chart(fig, theme="streamlit", use_container_width=False)
                     else:
                         pass
+    
+    #       Tab 6
+    with tab6:
+        st.header(f'{year} {gp} {session} Lap by Lap Comparison')
+        fig1, fig2, fig3, kpi_dict = telemetry(data,drivers)
+        figs = [fig2, fig3]
+        for i, col in enumerate(st.columns(len(drivers))):
+            with col:
+                driver = list(kpi_dict.keys())[i]
+                value = kpi_dict[driver]
+                st.metric(label=driver, value=value)
+                st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
+                        unsafe_allow_html=True)
+        st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
+        for i, col in enumerate(st.columns(3)):
+                with col:
+                    if i == 1:
+                        st.plotly_chart(fig, theme="streamlit", use_container_width=False)
+                    else:
+                        pass
+        st.plotly_chart(fig3, theme="streamlit", use_container_width=True)
