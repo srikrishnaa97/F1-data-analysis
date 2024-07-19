@@ -6,7 +6,7 @@ import streamlit.components.v1 as components
 import datetime as dt
 import pandas as pd
 import numpy as np
-from plot_functions import basic_plots, lap_times_plot, plot_speed_segments, track_animation, telemetry
+from plot_functions import plot_speed_segments, telemetry, get_driver_laps, lap_times_plot
 from basic_functions import convert_str_date_to_time, convert_timedelta_to_time
 
 # fastf1.Cache.enable_cache('./cache')
@@ -86,10 +86,10 @@ session = st.sidebar.selectbox(
 )
 try:
     data = get_session_data(year, gp, session)
-    all_drivers = data.results.Abbreviation.unique()
+    all_drivers = list(data.results.Abbreviation.unique())
     drivers = st.sidebar.multiselect(
         "Driver(s)",
-        all_drivers,
+        all_drivers, #+ all_drivers,
         default=data.laps.groupby('Driver').LapTime.min().sort_values().reset_index()['Driver'].iloc[:2].to_list(),
         max_selections=3
     )
@@ -229,7 +229,7 @@ if display_data_flag:
                     if i == 0:
                         st.plotly_chart(fig1, theme="streamlit", use_container_width=False)
                     else:
-                        pass
+                        st.empty()
         with subtab2:
             st.header(f'{year} {gp} {session} Track Dominance Full Session')
             fig2, kpi_dict = plot_speed_segments(data, drivers, fastest_lap=False)
@@ -255,21 +255,41 @@ if display_data_flag:
     
     #       Tab 6
     with tab6:
-        st.header(f'{year} {gp} {session} Lap by Lap Comparison')
-        fig1, fig2, fig3, kpi_dict = telemetry(data,drivers)
-        figs = [fig2, fig3]
+        st.header(f'{year} {gp} {session}')
+        fig1 = lap_times_plot(data,drivers) 
+        st.header(f'Lap Times')
+        st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
+
+        # Get lap input
+        
+        def reset_lap_numbers(driver):
+            return None
+        
+        lap_numbers = [None]*len(drivers)
+
+        vals = {}
+        st.header("Lap Select")
+        for i, col in enumerate(st.columns(len(drivers))):
+            with col: 
+                st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(drivers[i])}">{drivers[i]}</h4>',
+                        unsafe_allow_html=True)
+                laps = get_driver_laps(data,drivers[i])
+                fastest_time = laps.LapTime.min()
+                fastest_lap = laps[laps.LapTime == fastest_time].LapNumber.iloc[0]
+                options = [f"Lap {int(lap['LapNumber'])} | {lap['Compound']}" if lap['LapNumber'] != fastest_lap else f"Lap {int(lap['LapNumber'])} | {lap['Compound']} | Fastest" for _,lap in laps.iterrows()]
+                default = int(laps['LapNumber'].loc[int(laps.LapTime.idxmin())])-1
+                vals[drivers[i]] = st.selectbox(label=f"Lap Select", options=options, index=int(default), key=f"box_{i}")
+                vals[drivers[i]] = int(vals[drivers[i]].split('|')[0][3:-1])
+                        
+        lap_nums = vals if len(vals) > 0 else {d: None for d in drivers}
+        fig2, fig3, kpi_dict = telemetry(lap_nums,data,drivers)
         for i, col in enumerate(st.columns(len(drivers))):
             with col:
-                driver = list(kpi_dict.keys())[i]
+                driver = drivers[i]
                 value = kpi_dict[driver]
-                st.metric(label=driver, value=value)
-                st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
-                        unsafe_allow_html=True)
-        st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
-        for i, col in enumerate(st.columns(2)):
-            with col:
-                if i == 0:
-                    st.plotly_chart(fig2, theme="streamlit", use_container_width=False)
-                else:
-                    pass
+                st.metric(label="Sample", value=value, label_visibility='hidden')
+
+        st.header(f'Track Animation')
+        st.plotly_chart(fig2, theme="streamlit", use_container_width=False)
+        st.header(f'Telemetry')
         st.plotly_chart(fig3, theme="streamlit", use_container_width=True)

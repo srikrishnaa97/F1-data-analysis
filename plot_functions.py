@@ -7,7 +7,15 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-def basic_plots(data,drivers):
+def get_basic_plot_data(data,driver,lap_number):
+    if lap_number == None:
+        lap_time = data.laps.pick_driver(driver).pick_fastest()['LapTime'].iloc[0]
+        return lap_time, data.laps.pick_driver(driver).pick_fastest().get_car_data().add_distance()
+    else:
+        lap_time = data.laps.pick_driver(driver).pick_lap(lap_number)['LapTime'].iloc[0]
+        return lap_time, data.laps.pick_driver(driver).pick_lap(lap_number).get_car_data().add_distance()
+
+def basic_plots(data,drivers,lap_numbers):
     df = pd.DataFrame()
     plots = [
         'Speed',
@@ -17,21 +25,19 @@ def basic_plots(data,drivers):
     ]
 
     lap_time = {}
-    for d in drivers:
-        driver_df = data.laps.pick_driver(d).pick_fastest().get_car_data().add_distance()
+    for i,d in enumerate(drivers):
+        lap, driver_df = get_basic_plot_data(data,d,lap_numbers[d])
         driver_df['Time'] = driver_df['Time'] + pd.to_datetime("1970-01-01 00:00:00.000",format="%Y-%m-%d %H:%M:%S.%f") #dt.datetime(1970,1,1,0,0,0,0)
         driver_df['Time'] = driver_df['Time'].apply(lambda x: x.to_pydatetime())
         driver_df['Driver'] = d
         df = pd.concat([df, driver_df], axis=0)
 
-        lap_time[d] = convert_timedelta_to_time(
-            data.laps.pick_driver(d).pick_quicklaps().sort_values('LapTime').iloc[0]['LapTime'])
+        lap_time[d] = convert_timedelta_to_time(lap)
 
     # Lap Time
     lap_time = pd.DataFrame(lap_time.values(), columns=['LapTime'], index=lap_time.keys()).sort_values(
         'LapTime').reset_index()
     lap_time.rename({'index': 'Driver'}, axis=1, inplace=True)
-    # st.dataframe(lap_time,use_container_width=True)
     kpi_dict = {}
     for i in range(min(len(lap_time), 5)):
         minutes = int(lap_time['LapTime'].iloc[i] // 60)
@@ -63,15 +69,26 @@ def basic_plots(data,drivers):
             row=i+1,
             col=1
         )
+        fig.update_yaxes(
+            title=p,
+            row=i+1,
+            col=1
+        )
         
     fig.update_layout(
         height=300*len(plots),
     )
+    fig.update_annotations(
+        font_size=25
+    )
     return fig, kpi_dict
+
+def get_driver_laps(data,driver):
+    return data.laps.pick_driver(driver)[['LapNumber','Compound','LapTime']]#.sort_values('LapNumber')
 
 def lap_times_plot(data,drivers):
     # figs = []
-    fig = make_subplots(rows=len(drivers),cols=1,shared_xaxes=True,vertical_spacing=0.2,row_heights=[500]*len(drivers))
+    fig = make_subplots(rows=len(drivers),cols=1,shared_xaxes=True,vertical_spacing=0.05,row_heights=[300]*len(drivers),subplot_titles=drivers)
     coms = []
     for i,d in enumerate(drivers):
         df = data.laps.pick_driver(d)
@@ -100,12 +117,23 @@ def lap_times_plot(data,drivers):
             for l in yellow_laps:
                 fig.add_annotation(
                     x=l,  # x-coordinate of the annotation
-                    y=convert_timedelta_to_time(data.laps.pick_driver(d).pick_fastest()['LapTime']),
+                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0),
                     # y-coordinate of the annotation
-                    text="&#128993;",  # text to display
+                    text="&#9888;",  # text to display
                     showarrow=False,
                     row = i+1,
                     col = 1
+                )
+                fig.add_annotation(
+                    x=l,  # x-coordinate of the annotation
+                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 5, 0),
+                    # y-coordinate of the annotation
+                    text="Yellow flag",  # text to display
+                    showarrow=False,
+                    row = i+1,
+                    col = 1,
+                    font=dict(size=15),
+                    textangle=-90
                 )
         if 'RED' in data.race_control_messages.Flag.unique():
             yellow_laps = rcm[(rcm.Flag == 'RED') & (rcm.Scope == 'Track')]['Lap'].unique()
@@ -114,10 +142,21 @@ def lap_times_plot(data,drivers):
                     x=l,  # x-coordinate of the annotation
                     y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0),
                     # y-coordinate of the annotation
-                    text="&#128308;",  # text to display
+                    text="&#128681;",  # text to display
                     showarrow=False,
                     row = i+1,
                     col = 1
+                )
+                fig.add_annotation(
+                    x=l,  # x-coordinate of the annotation
+                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 5, 0),
+                    # y-coordinate of the annotation
+                    text="Red flag",  # text to display
+                    showarrow=False,
+                    row = i+1,
+                    col = 1,
+                    font=dict(size=15),
+                    textangle=-90
                 )
         fig.update_yaxes(
             tickformat='%M:%S.%f',
@@ -134,7 +173,16 @@ def lap_times_plot(data,drivers):
             row=1,col=1
         )
         
-    fig.update_layout(xaxis_range=[0, data.laps.LapNumber.max()+1],height=500*len(drivers))
+    fig.update_layout(
+        xaxis_range=[0, data.laps.LapNumber.max()+1],
+        height=500*len(drivers),
+        legend=dict(
+            yanchor="top",
+            y=0.99,
+            xanchor="left",
+            x=0.01
+        )
+    )
     
     return fig
 
@@ -274,14 +322,28 @@ def plot_speed_segments(data, drivers, fastest_lap=True):
 
     return fig, kpi_dict
 
-def track_animation(data, drivers):
+def get_track_animation_data(data,driver,lap_number):
+    if lap_number == None:
+        lap = data.laps.pick_driver(driver).pick_fastest().LapTime.iloc[0]
+        df = data.laps.pick_driver(driver).pick_fastest().get_telemetry()
+    else:
+        lap = data.laps.pick_driver(driver).pick_lap(lap_number).LapTime.iloc[0]
+        df = data.laps.pick_driver(driver).pick_lap(lap_number).get_telemetry() 
+
+    return lap, df
+
+def track_animation(data, drivers, lap_numbers):
     circuit_info = data.get_circuit_info()
     track_angle = circuit_info.rotation / 180 * np.pi
-    lap = [data.laps.pick_driver(d).pick_fastest().LapTime for d in drivers]
-
+    laps = []
     dfs = {}
+    for i,d in enumerate(drivers):
+        lap, df = get_track_animation_data(data,d,lap_number=lap_numbers[d])
+        laps.append(lap)
+        dfs[d] = df
+
     t0 = dt.datetime(1970,1,1,0,0,0,0)
-    t1 = np.min(lap)
+    t1 = np.min(laps)
     delta_t = dt.timedelta(seconds=1)
     ts = pd.DataFrame(np.arange(t0,t1,delta_t)).rename({0: 'Time'},axis=1)
     ts['Time'] = ts['Time'] - t0
@@ -289,8 +351,6 @@ def track_animation(data, drivers):
     offset_x, offset_y = rotate(offset_vector, angle=track_angle)
     driver_pos = pd.DataFrame()
     for i,d in enumerate(drivers):
-        dfs[d] = data.laps.pick_driver(d).pick_fastest().get_telemetry()
-
         track = dfs[d].loc[:, ('X', 'Y')].to_numpy()
         dfs[d]['X_unrotated'] = dfs[d]['X'].copy()
         dfs[d]['Y_unrotated'] = dfs[d]['Y'].copy()
@@ -376,7 +436,23 @@ def track_animation(data, drivers):
     }
     fig_dict["data"].append(data_dict)
     
-    
+    corners_data = []
+    # Corners
+    offset_vector = [300, 0]
+    for _, corner in circuit_info.corners.iterrows():
+        txt = f"{corner['Number']}{corner['Letter']}"
+        offset_angle = corner['Angle'] / 180 * np.pi
+        
+        offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
+
+        text_x = corner['X'] + offset_x
+        text_y = corner['Y'] + offset_y
+
+        text_x, text_y = rotate([text_x, text_y], angle=track_angle)
+
+        corners_data.append(dict(x=[text_x], y=[text_y], mode='text', text=txt, textposition='middle center', hoverinfo='skip',
+                       textfont=dict(size=20),showlegend=False))
+    fig_dict["data"] = fig_dict["data"] + corners_data
     # make frames
     times = list(np.arange(t0,t1,delta_t)) 
     times.append(t1+t0)
@@ -424,35 +500,10 @@ def track_animation(data, drivers):
 
     fig_dict["layout"]["sliders"] = [sliders_dict]
     fig = go.Figure(fig_dict)
-
-    # Legend 
-    for d in drivers:
-        fig.add_trace(go.Scatter(
-            x=[None],
-            y=[None],
-            mode="markers",
-            name=d,
-            marker=dict(color=fastf1.plotting.driver_color(d), size=10),
-        ))
-        fig.update_traces(dict(showlegend=True), selector=({'name': d}))
-
-    # Corners
-    offset_vector = [300, 0]
-    for _, corner in circuit_info.corners.iterrows():
-        txt = f"{corner['Number']}{corner['Letter']}"
-        offset_angle = corner['Angle'] / 180 * np.pi
-        
-        offset_x, offset_y = rotate(offset_vector, angle=offset_angle)
-
-        text_x = corner['X'] + offset_x
-        text_y = corner['Y'] + offset_y
-
-        text_x, text_y = rotate([text_x, text_y], angle=track_angle)
-
-        fig.add_trace(
-            go.Scatter(x=[text_x], y=[text_y], mode='text', text=txt, textposition='middle center', hoverinfo='skip',
-                       textfont=dict(size=20),showlegend=False)
-        )
+    fig.add_traces(
+        corners_data
+    )
+    
     
     #Checkered flag
     offset_angle = np.pi / 2 + first_segment_angle
@@ -475,11 +526,21 @@ def track_animation(data, drivers):
         plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
     
     
+    # Legend 
+    for d in drivers:
+        fig.add_trace(go.Scatter(
+            x=[None],
+            y=[None],
+            mode="markers",
+            name=d,
+            marker=dict(color=fastf1.plotting.driver_color(d), size=10),
+        ))
+        fig.update_traces(dict(showlegend=True), selector=({'name': d}))
+
     return fig
 
-def telemetry(data,drivers):
-    lap_times_fig = lap_times_plot(data,drivers)
-    track_animation_fig = track_animation(data,drivers)
-    telemetry_fig, kpi_dict = basic_plots(data,drivers)
+def telemetry(lap_numbers,data,drivers):
+    track_animation_fig = track_animation(data,drivers,lap_numbers=lap_numbers)
+    telemetry_fig, kpi_dict = basic_plots(data,drivers,lap_numbers=lap_numbers)
 
-    return lap_times_fig, track_animation_fig, telemetry_fig, kpi_dict
+    return track_animation_fig, telemetry_fig, kpi_dict
