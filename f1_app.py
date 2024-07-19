@@ -9,8 +9,6 @@ import numpy as np
 from plot_functions import plot_speed_segments, telemetry, get_driver_laps, lap_times_plot
 from basic_functions import convert_str_date_to_time, convert_timedelta_to_time
 
-# fastf1.Cache.enable_cache('./cache')
-fastf1.Cache.clear_cache()
 st.set_page_config(
     page_title="F1 Data Analysis",
     page_icon="./images/favicon.png",
