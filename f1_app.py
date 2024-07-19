@@ -10,7 +10,7 @@ from plot_functions import plot_speed_segments, telemetry, get_driver_laps, lap_
 from basic_functions import convert_str_date_to_time, convert_timedelta_to_time
 
 # fastf1.Cache.enable_cache('./cache')
-# fastf1.Cache.clear_cache()
+fastf1.Cache.clear_cache()
 st.set_page_config(
     page_title="F1 Data Analysis",
     page_icon="./images/favicon.png",
@@ -30,7 +30,7 @@ with col2:
     st.title('Formula 1 Data Analysis')
 
 
-@st.cache_data(ttl=2 * 3600,max_entries=3,show_spinner='Fetching session data...')
+@st.cache_resource(max_entries=1,show_spinner='Fetching session data...')
 def get_session_data(year, gp, session):
     # _, cache_size = fastf1.Cache.get_cache_info()
     # if cache_size >= 3e8:
@@ -40,7 +40,7 @@ def get_session_data(year, gp, session):
     return data
 
 
-@st.cache_data
+@st.cache_resource(max_entries=1)
 def get_event_schedule_data(year):
     schedule = fastf1.get_event_schedule(year)
     schedule['EventDate'] = pd.to_datetime(schedule['EventDate'])
@@ -49,7 +49,7 @@ def get_event_schedule_data(year):
     return schedule
 
 
-@st.cache_data
+@st.cache_resource(max_entries=1)
 def get_event_data(year, gp):
     event = fastf1.get_event(year, gp)
     return event
@@ -89,7 +89,7 @@ try:
     all_drivers = list(data.results.Abbreviation.unique())
     drivers = st.sidebar.multiselect(
         "Driver(s)",
-        all_drivers, #+ all_drivers,
+        all_drivers, 
         default=data.laps.groupby('Driver').LapTime.min().sort_values().reset_index()['Driver'].iloc[:2].to_list(),
         max_selections=3
     )
@@ -121,7 +121,6 @@ event_data = {'year':year,'gp':gp,'session':session}
 
 # Tabs
 if display_data_flag:
-    # tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["Results", "Fastest Comparison", "Track Dominance", "Lap By Lap", "Track Animation", "Telemetry"])
     tab1, tab3, tab6 = st.tabs(["Results", "Track Dominance", "Telemetry"])
 
     #       Tab 1
@@ -196,21 +195,6 @@ if display_data_flag:
         html += '</table>'
         st.markdown(html, unsafe_allow_html=True)
 
-    #       Tab 2
-    # with tab2:
-    #     st.header(f'{year} {gp} {session} Fastest Lap Comparison')
-    #     fig, kpi_dict = basic_plots(data,drivers)
-    #     for i, col in enumerate(st.columns(len(kpi_dict))):
-    #         with col:
-    #             driver = list(kpi_dict.keys())[i]
-    #             value = kpi_dict[driver]
-    #             st.metric(label=driver, value=value)
-    #             st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
-    #                         unsafe_allow_html=True)
-
-    #     st.plotly_chart(fig, theme="streamlit", use_container_width=True)
-
-    #       Tab 3
     with tab3:
         subtab1, subtab2 = st.tabs(["Fastest Lap", "Full session"])
         with subtab1:
@@ -234,24 +218,6 @@ if display_data_flag:
             st.header(f'{year} {gp} {session} Track Dominance Full Session')
             fig2, kpi_dict = plot_speed_segments(data, drivers, fastest_lap=False)
             st.plotly_chart(fig2,theme="streamlit",use_container_width=False)
-
-    #       Tab 4
-    # with tab4:
-    #     st.header(f'{year} {gp} {session} Lap by Lap Comparison')
-    #     fig = lap_times_plot(data,drivers)
-    #     # for fig in figs:
-    #     st.plotly_chart(fig, theme="streamlit", use_container_width=True)
-    
-    # #       Tab 5
-    # with tab5:
-    #     st.header(f'{year} {gp} {session} Track Animation')
-    #     fig = track_animation(data,drivers)
-    #     for i, col in enumerate(st.columns(2)):
-    #             with col:
-    #                 if i == 0:
-    #                     st.plotly_chart(fig, theme="streamlit", use_container_width=False)
-    #                 else:
-    #                     pass
     
     #       Tab 6
     with tab6:
