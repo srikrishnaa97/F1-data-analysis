@@ -359,8 +359,6 @@ def track_animation(data, drivers, lap_numbers):
     delta_t = dt.timedelta(seconds=1)
     ts = pd.DataFrame(np.arange(t0,t1,delta_t)).rename({0: 'Time'},axis=1)
     ts['Time'] = ts['Time'] - t0
-    offset_vector = [100, 0]
-    offset_x, offset_y = rotate(offset_vector, angle=track_angle)
     driver_pos = pd.DataFrame()
     for i,d in enumerate(drivers):
         track = dfs[d].loc[:, ('X', 'Y')].to_numpy()
@@ -371,8 +369,6 @@ def track_animation(data, drivers, lap_numbers):
         dfs[d]['Y'] = rotated_track[:, 1]
 
         interpolation = dfs[d]
-        interpolation['X'] = interpolation['X'] + i*offset_x
-        interpolation['Y'] = interpolation['Y'] + i*offset_y
 
         if i == 0: 
             first_segment_begin = [interpolation['X_unrotated'].iloc[0],interpolation['Y_unrotated'].iloc[0]]
