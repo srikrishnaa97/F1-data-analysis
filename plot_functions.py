@@ -113,52 +113,63 @@ def lap_times_plot(data,drivers):
         for p in pit_stops:
             fig.add_vline(x=p, line_width=3, line_dash='dash', line_color=fastf1.plotting.driver_color(d), row=i+1, col=1)
         rcm = data.race_control_messages
+        ymin = data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)
+        ymax = (data.laps.pick_driver(d)['LapTime'].sort_values().iloc[-2:-1] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)).iloc[0]
         if 'YELLOW' in data.race_control_messages.Flag.unique():
             yellow_laps = rcm[(rcm.Flag == 'YELLOW') & (rcm.Scope == 'Track')]['Lap'].unique()
             for l in yellow_laps:
                 fig.add_annotation(
                     x=l,  # x-coordinate of the annotation
-                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0),
+                    y=ymin,
                     # y-coordinate of the annotation
                     text="&#9888;",  # text to display
                     showarrow=False,
+                    hovertext="YELLOW FLAG",
                     row = i+1,
                     col = 1
-                )
-                fig.add_annotation(
-                    x=l,  # x-coordinate of the annotation
-                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 5, 0),
-                    # y-coordinate of the annotation
-                    text="Yellow flag",  # text to display
-                    showarrow=False,
-                    row = i+1,
-                    col = 1,
-                    font=dict(size=15),
-                    textangle=-90
                 )
         if 'RED' in data.race_control_messages.Flag.unique():
             yellow_laps = rcm[(rcm.Flag == 'RED') & (rcm.Scope == 'Track')]['Lap'].unique()
             for l in yellow_laps:
                 fig.add_annotation(
                     x=l,  # x-coordinate of the annotation
-                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0),
+                    y=ymin,
                     # y-coordinate of the annotation
                     text="&#128681;",  # text to display
+                    hovertext="YELLOW FLAG",
                     showarrow=False,
                     row = i+1,
                     col = 1
                 )
-                fig.add_annotation(
-                    x=l,  # x-coordinate of the annotation
-                    y=data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 5, 0),
-                    # y-coordinate of the annotation
-                    text="Red flag",  # text to display
-                    showarrow=False,
-                    row = i+1,
-                    col = 1,
-                    font=dict(size=15),
-                    textangle=-90
-                )
+        if 'SafetyCar' in rcm.Category.unique():
+            safety_car_laps = rcm[rcm.Category.apply(lambda x: 'SafetyCar' in x)]
+            for _,row in safety_car_laps.iterrows():
+                if row['Status'] == 'DEPLOYED':
+                    start = row['Lap']
+                    end = start
+                    virtual_flag = 'VIRTUAL' in row['Message']
+                if row['Status'] in ('ENDING','IN THIS LAP'):
+                    end = row['Lap']
+                    fig.add_shape(
+                        type="rect",
+                        x0 = start-0.5,
+                        x1 = end+0.5,
+                        y0 = ymin,
+                        y1 = ymax + dt.timedelta(seconds=5),
+                        fillcolor="yellow",
+                        opacity=0.4,
+                        row=i+1,
+                        col=1
+                    )
+                    fig.add_annotation(
+                        x=(start+end)/2,
+                        y=ymin+dt.timedelta(seconds=10),
+                        text=f"{'V' if virtual_flag else ''}SC",
+                        showarrow=False,
+                        row=i+1,
+                        col=1,
+                        textangle=0
+                    )        
         fig.update_yaxes(
             tickformat='%M:%S.%f',
             row=i+1,
