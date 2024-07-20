@@ -124,7 +124,7 @@ if display_data_flag:
     #       Tab 1
     with tab1:
         st.header(f'{year} {gp} {session} Results')
-        html = get_results_df_as_html(data,session)
+        html = get_results_df_as_html(data)
         st.markdown(html, unsafe_allow_html=True)
 
     with tab3:
