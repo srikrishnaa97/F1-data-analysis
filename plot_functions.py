@@ -89,7 +89,7 @@ def get_driver_laps(data,driver):
 def lap_times_plot(data,drivers):
     # figs = []
     height = 300
-    fig = make_subplots(rows=len(drivers),cols=1,shared_xaxes=True,vertical_spacing=0.05,row_heights=[height]*len(drivers),subplot_titles=drivers)
+    fig = make_subplots(rows=len(drivers),cols=1,shared_xaxes=True,vertical_spacing=0.1,row_heights=[height]*len(drivers),subplot_titles=drivers)
     coms = []
     for i,d in enumerate(drivers):
         df = data.laps.pick_driver(d)
