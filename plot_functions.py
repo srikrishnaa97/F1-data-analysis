@@ -1,4 +1,4 @@
-from basic_functions import convert_timedelta_to_time, rotate
+from basic_functions import convert_timedelta_to_time, rotate, convert_str_date_to_datetime
 import datetime as dt
 import pandas as pd
 import plotly.express as px
@@ -27,13 +27,12 @@ def basic_plots(data,drivers,lap_numbers):
     lap_time = {}
     for i,d in enumerate(drivers):
         lap, driver_df = get_basic_plot_data(data,d,lap_numbers[d])
-        driver_df['Time'] = driver_df['Time'] + pd.to_datetime("1970-01-01 00:00:00.000",format="%Y-%m-%d %H:%M:%S.%f") #dt.datetime(1970,1,1,0,0,0,0)
-        driver_df['Time'] = driver_df['Time'].apply(lambda x: x.to_pydatetime())
+        driver_df['Time'] = driver_df['Time'].astype(str).apply(convert_str_date_to_datetime)
         driver_df['Driver'] = d
         df = pd.concat([df, driver_df], axis=0)
 
         lap_time[d] = convert_timedelta_to_time(lap)
-
+    df.sort_values('Time',inplace=True)
     # Lap Time
     lap_time = pd.DataFrame(lap_time.values(), columns=['LapTime'], index=lap_time.keys()).sort_values(
         'LapTime').reset_index()
@@ -46,10 +45,10 @@ def basic_plots(data,drivers,lap_numbers):
         kpi_dict[lap_time['Driver'].iloc[i]] = f"{minutes:>02d}:{seconds:>02d}.{milli:<03d}"
 
     # Plots
-    fig = make_subplots(rows=len(plots),cols=1,vertical_spacing=0.1,row_heights=[500]*len(plots),subplot_titles=plots)
+    fig = make_subplots(rows=len(plots),cols=1,vertical_spacing=0.1,shared_xaxes=True,row_heights=[500]*len(plots),subplot_titles=plots)
     for i, p in enumerate(plots):
         for d in drivers:
-            subdf = df[df['Driver']==d]#.sort_values('Time')
+            subdf = df[df['Driver']==d]
             fig.add_trace(
                 go.Scatter(
                     x=subdf['Time'].to_numpy(),
@@ -66,6 +65,7 @@ def basic_plots(data,drivers,lap_numbers):
             )
         fig.update_xaxes(
             tickformat="%M:%S.%f",
+            hoverformat="%M:%S:%f",
             row=i+1,
             col=1
         )

@@ -15,6 +15,19 @@ def convert_str_date_to_time(date):
 
     return 'No Time'
 
+def convert_str_date_to_datetime(date):
+    if date != 'NaT' and date != 'No Time':
+        if not '.' in date:
+            date += '.000000'
+
+        try: 
+            temp = dt.datetime.strptime(date, "0 days %H:%M:%S.%f")
+        except:
+            temp = dt.datetime.strptime(date, "%H:%M:%S.%f")
+        return temp
+
+    return pd.NaT
+
 
 def convert_timedelta_to_time(date):
     if pd.isnull(date):
