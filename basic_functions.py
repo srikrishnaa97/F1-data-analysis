@@ -28,7 +28,7 @@ def rotate(xy, *, angle):
     return np.matmul(xy, rot_mat)
 
 def path_to_image_html(path):
-            return '<img src="' + path + '">'
+    return '<img src="' + path + '">'
 
 def get_results_df_as_html(data):
     results = data.results
