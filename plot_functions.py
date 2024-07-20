@@ -120,7 +120,7 @@ def lap_times_plot(data,drivers):
             for l in yellow_laps:
                 fig.add_annotation(
                     x=l,  # x-coordinate of the annotation
-                    y=ymin,
+                    y=ymin - dt.timedelta(seconds=5),
                     # y-coordinate of the annotation
                     text="&#9888;",  # text to display
                     showarrow=False,
@@ -133,10 +133,10 @@ def lap_times_plot(data,drivers):
             for l in yellow_laps:
                 fig.add_annotation(
                     x=l,  # x-coordinate of the annotation
-                    y=ymin,
+                    y=ymin - dt.timedelta(seconds=5),
                     # y-coordinate of the annotation
                     text="&#128681;",  # text to display
-                    hovertext="YELLOW FLAG",
+                    hovertext="RED FLAG",
                     showarrow=False,
                     row = i+1,
                     col = 1
@@ -154,7 +154,7 @@ def lap_times_plot(data,drivers):
                         type="rect",
                         x0 = start-0.5,
                         x1 = end+0.5,
-                        y0 = ymin,
+                        y0 = ymin - dt.timedelta(seconds=5),
                         y1 = ymax + dt.timedelta(seconds=5),
                         fillcolor="yellow",
                         opacity=0.4,
