@@ -28,7 +28,7 @@ with col2:
     st.title('Formula 1 Data Analysis')
 
 
-@st.cache_resource(max_entries=1,show_spinner='Fetching session data...')
+@st.cache_resource(max_entries=1,show_spinner='Fetching session...')
 def get_session_data(year, gp, session):
     # _, cache_size = fastf1.Cache.get_cache_info()
     # if cache_size >= 3e8:
@@ -38,7 +38,7 @@ def get_session_data(year, gp, session):
     return data
 
 
-@st.cache_resource(max_entries=1)
+@st.cache_resource(max_entries=1,show_spinner='Fetching schedule...')
 def get_event_schedule_data(year):
     schedule = fastf1.get_event_schedule(year)
     schedule['EventDate'] = pd.to_datetime(schedule['EventDate'])
@@ -47,7 +47,7 @@ def get_event_schedule_data(year):
     return schedule
 
 
-@st.cache_resource(max_entries=1)
+@st.cache_resource(max_entries=1,show_spinner='Fetching event...')
 def get_event_data(year, gp):
     event = fastf1.get_event(year, gp)
     return event

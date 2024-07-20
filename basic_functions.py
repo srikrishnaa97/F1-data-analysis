@@ -3,11 +3,14 @@ import pandas as pd
 import numpy as np
 
 def convert_str_date_to_time(date):
-    if date != 'NaT':
+    if date != 'NaT' and date != 'No Time':
         if not '.' in date:
             date += '.000000'
 
-        temp = dt.datetime.strptime(date, "0 days %H:%M:%S.%f")
+        try: 
+            temp = dt.datetime.strptime(date, "0 days %H:%M:%S.%f")
+        except:
+            temp = dt.datetime.strptime(date, "%H:%M:%S.%f")
         return dt.datetime.strftime(temp, "%H:%M:%S.%f")
 
     return 'No Time'
