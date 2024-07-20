@@ -188,6 +188,8 @@ if display_data_flag:
                 st.metric(label="Sample", value=value, label_visibility='hidden')
 
         st.header(f'Track Animation')
-        st.plotly_chart(fig2, theme="streamlit", use_container_width=False)
+        _, mid, __ = st.columns([1, 20, 1])
+        with mid:
+            st.plotly_chart(fig2, theme="streamlit", use_container_width=False)
         st.header(f'Telemetry')
         st.plotly_chart(fig3, theme="streamlit", use_container_width=True)
