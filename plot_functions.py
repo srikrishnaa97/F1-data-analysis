@@ -372,7 +372,7 @@ def track_animation(data, drivers, lap_numbers):
 
         if i == 0: 
             first_segment_begin = [interpolation['X_unrotated'].iloc[0],interpolation['Y_unrotated'].iloc[0]]
-            first_segment_angle = np.arctan((interpolation['Y_unrotated'].iloc[3]-interpolation['Y_unrotated'].iloc[0])/interpolation['X_unrotated'].iloc[3]-interpolation['Y_unrotated'].iloc[0])
+            first_segment_angle = np.arctan((interpolation['Y_unrotated'].iloc[3]-interpolation['Y_unrotated'].iloc[0])/interpolation['X_unrotated'].iloc[3]-interpolation['X_unrotated'].iloc[0])
 
         # Store in driver pos
         if len(driver_pos) == 0:
