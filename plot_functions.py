@@ -6,6 +6,7 @@ import fastf1.plotting
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import math
 
 def get_basic_plot_data(data,driver,lap_number):
     if lap_number == None:
@@ -27,6 +28,8 @@ def basic_plots(data,drivers,lap_numbers):
     lap_time = {}
     for i,d in enumerate(drivers):
         lap, driver_df = get_basic_plot_data(data,d,lap_numbers[d])
+        if driver_df.Time.dropna().shape[0] == 0:
+            return d
         driver_df['Time'] = driver_df['Time'].astype(str).apply(convert_str_date_to_datetime)
         driver_df['Driver'] = d
         df = pd.concat([df, driver_df], axis=0)
@@ -84,7 +87,7 @@ def basic_plots(data,drivers,lap_numbers):
     return fig, kpi_dict
 
 def get_driver_laps(data,driver):
-    return data.laps.pick_driver(driver)[['LapNumber','Compound','LapTime']]#.sort_values('LapNumber')
+    return data.laps.pick_driver(driver)[['LapNumber','Compound','LapTime']].dropna(subset=['LapTime'])
 
 def lap_times_plot(data,drivers):
     # figs = []
@@ -92,29 +95,20 @@ def lap_times_plot(data,drivers):
     fig = make_subplots(rows=len(drivers),cols=1,shared_xaxes=True,vertical_spacing=0.1,row_heights=[height]*len(drivers),subplot_titles=drivers)
     coms = []
     for i,d in enumerate(drivers):
-        df = data.laps.pick_driver(d)
-        df['LapTime'] = df['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0,
-                                                    0)  
-        stints = df[["Driver", "Stint", "Compound", "LapNumber"]].copy()
-        stints = stints.groupby(["Driver", "Stint", "Compound"])
-        stints = stints.count().reset_index()
-        stints = stints.rename(columns={"LapNumber": "StintLength"})
-        pit_stops = data.laps.pick_driver(d).pick_box_laps()
-        pit_stops = pit_stops[~pit_stops.PitInTime.isna()].LapNumber.to_list()
-        for com in df.Compound.unique():
-            subdata = df[df['Compound']==com]
-            fig.add_trace(
-                go.Scatter(x=subdata['LapNumber'].to_numpy(), y=subdata['LapTime'].to_numpy(),mode="markers",marker=dict(color=fastf1.plotting.COMPOUND_COLORS[com]),
-                           showlegend=False,name=d),
-                row=i+1,
-                col=1,
-            )
-            coms.append(com)
-        for p in pit_stops:
-            fig.add_vline(x=p, line_width=3, line_dash='dash', line_color=fastf1.plotting.driver_color(d), row=i+1, col=1)
-        rcm = data.race_control_messages
+        df = data.laps.pick_driver(d).dropna(subset=['LapTime'])
+        if df.shape[0] == 0:
+            return d
+        if isinstance(data.laps.pick_driver(d).pick_fastest()['LapTime'],float) :
+            return d
+        
         ymin = data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)
-        ymax = (data.laps.pick_driver(d)['LapTime'].dropna().sort_values().iloc[-2:-1] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)).iloc[0]
+        if len(data.laps.pick_driver(d)['LapTime'].dropna()) > 2:
+            ymax = (data.laps.pick_driver(d)['LapTime'].dropna().sort_values().iloc[-2:-1] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)).iloc[0]
+        else: 
+            ymax = ymin + dt.timedelta(seconds=5)
+        
+        rcm = data.race_control_messages
+        
         if 'YELLOW' in data.race_control_messages.Flag.unique():
             yellow_laps = rcm[(rcm.Flag == 'YELLOW') & (rcm.Scope == 'Track')]['Lap'].unique()
             for l in yellow_laps:
@@ -169,7 +163,28 @@ def lap_times_plot(data,drivers):
                         row=i+1,
                         col=1,
                         textangle=0
-                    )        
+                    )
+                    
+        df['LapTime'] = df['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0,
+                                                    0)  
+        stints = df[["Driver", "Stint", "Compound", "LapNumber"]].copy()
+        stints = stints.groupby(["Driver", "Stint", "Compound"])
+        stints = stints.count().reset_index()
+        stints = stints.rename(columns={"LapNumber": "StintLength"})
+        pit_stops = data.laps.pick_driver(d).pick_box_laps()
+        pit_stops = pit_stops[~pit_stops.PitInTime.isna()].LapNumber.to_list()
+        for com in df.Compound.unique():
+            subdata = df[df['Compound']==com]
+            fig.add_trace(
+                go.Scatter(x=subdata['LapNumber'].to_numpy(), y=subdata['LapTime'].to_numpy(),mode="markers",marker=dict(color=fastf1.plotting.COMPOUND_COLORS[com]),
+                           showlegend=False,name=d),
+                row=i+1,
+                col=1,
+            )
+            coms.append(com)
+        for p in pit_stops:
+            fig.add_vline(x=p, line_width=3, line_dash='dash', line_color=fastf1.plotting.driver_color(d), row=i+1, col=1)
+                
         fig.update_yaxes(
             tickformat='%M:%S.%f',
             row=i+1,
@@ -213,12 +228,15 @@ def plot_speed_segments(data, drivers, fastest_lap=True):
     driver_df = pd.Series()
     lap_time = {}
     for d in drivers:
-        lap_time[d] = convert_timedelta_to_time(
-            data.laps.pick_driver(d).pick_quicklaps().sort_values('LapTime').iloc[0]['LapTime'])
-        if fastest_lap:
-            temp_df = data.laps.pick_driver(d).pick_fastest().get_telemetry()
-        else:
-            temp_df = data.laps.pick_driver(d).pick_quicklaps().get_telemetry()
+        try:
+            lap_time[d] = convert_timedelta_to_time(
+                data.laps.pick_driver(d).pick_quicklaps().sort_values('LapTime').iloc[0]['LapTime'])
+            if fastest_lap:
+                temp_df = data.laps.pick_driver(d).pick_fastest().get_telemetry()
+            else:
+                temp_df = data.laps.pick_driver(d).pick_quicklaps().get_telemetry()
+        except:
+            return -999,d
         temp_df['dist_segments'] = pd.cut(temp_df.Distance, bins=dist_segments)
         temp_df = temp_df.groupby('dist_segments')['Speed'].mean().reset_index()
         temp_df['Driver'] = d

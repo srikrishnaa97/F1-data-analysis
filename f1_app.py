@@ -132,64 +132,78 @@ if display_data_flag:
         with subtab1:
             st.header(f'{year} {gp} {session} Track Dominance Fastest Lap')
             fig1, kpi_dict = plot_speed_segments(data, drivers, fastest_lap=True)
-            for i, col in enumerate(st.columns(len(kpi_dict))):
-                with col:
-                    driver = list(kpi_dict.keys())[i]
-                    value = kpi_dict[driver]
-                    st.metric(label=driver, value=value)
-                    st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
-                            unsafe_allow_html=True)
-            
-            for i, col in enumerate(st.columns(2)):
-                with col:
-                    if i == 0:
-                        st.plotly_chart(fig1, theme="streamlit", use_container_width=False)
-                    else:
-                        st.empty()
+            if isinstance(fig1,int):
+                st.warning(f"Error loading data for {kpi_dict}! Please remove {kpi_dict} from driver selection and try again!", icon="⚠️")
+            else:
+                for i, col in enumerate(st.columns(len(kpi_dict))):
+                    with col:
+                        driver = list(kpi_dict.keys())[i]
+                        value = kpi_dict[driver]
+                        st.metric(label=driver, value=value)
+                        st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(driver)}">{driver}</h4>',
+                                unsafe_allow_html=True)
+                
+                for i, col in enumerate(st.columns(2)):
+                    with col:
+                        if i == 0:
+                            st.plotly_chart(fig1, theme="streamlit", use_container_width=False)
+                        else:
+                            st.empty()
         with subtab2:
             st.header(f'{year} {gp} {session} Track Dominance Full Session')
             fig2, kpi_dict = plot_speed_segments(data, drivers, fastest_lap=False)
-            st.plotly_chart(fig2,theme="streamlit",use_container_width=False)
+            if isinstance(fig2,int):
+                st.warning(f"Error loading data for {kpi_dict}! Please remove {kpi_dict} from driver selection and try again!", icon="⚠️")
+            else:
+                st.plotly_chart(fig2,theme="streamlit",use_container_width=False)
     
     #       Tab 6
     with tab6:
         st.header(f'{year} {gp} {session}')
         fig1 = lap_times_plot(data,drivers) 
-        st.header(f'Lap Times')
-        st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
+        if isinstance(fig1,str):
+            st.warning(f"Error loading data for {fig1}! Please remove {fig1} from driver selection and try again!", icon="⚠️")
+        else:
+            st.header(f'Lap Times')
+            st.plotly_chart(fig1, theme="streamlit", use_container_width=True)
 
-        # Get lap input
+            # Get lap input
         
-        def reset_lap_numbers(driver):
-            return None
-        
-        lap_numbers = [None]*len(drivers)
+            def reset_lap_numbers(driver):
+                return None
+            
+            lap_numbers = [None]*len(drivers)
 
-        vals = {}
-        st.header("Lap Select")
-        for i, col in enumerate(st.columns(len(drivers))):
-            with col: 
-                st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(drivers[i])}">{drivers[i]}</h4>',
-                        unsafe_allow_html=True)
-                laps = get_driver_laps(data,drivers[i])
-                fastest_time = laps.LapTime.min()
-                fastest_lap = laps[laps.LapTime == fastest_time].LapNumber.iloc[0]
-                options = [f"Lap {int(lap['LapNumber'])} | {lap['Compound']}" if lap['LapNumber'] != fastest_lap else f"Lap {int(lap['LapNumber'])} | {lap['Compound']} | Fastest" for _,lap in laps.iterrows()]
-                default = int(laps['LapNumber'].loc[int(laps.LapTime.idxmin())])-1
-                vals[drivers[i]] = st.selectbox(label=f"Lap Select", options=options, index=int(default), key=f"box_{i}")
-                vals[drivers[i]] = int(vals[drivers[i]].split('|')[0][3:-1])
-                        
-        lap_nums = vals if len(vals) > 0 else {d: None for d in drivers}
-        fig2, fig3, kpi_dict = telemetry(lap_nums,data,drivers)
-        for i, col in enumerate(st.columns(len(drivers))):
-            with col:
-                driver = drivers[i]
-                value = kpi_dict[driver]
-                st.metric(label="Sample", value=value, label_visibility='hidden')
+            vals = {}
+            st.header("Lap Select")
+            for i, col in enumerate(st.columns(len(drivers))):
+                with col: 
+                    st.markdown(f'<h4 style="color:{fastf1.plotting.driver_color(drivers[i])}">{drivers[i]}</h4>',
+                            unsafe_allow_html=True)
+                    laps = get_driver_laps(data,drivers[i])
+                    fastest_time = laps.LapTime.min()
+                    fastest_lap = laps[laps.LapTime == fastest_time].LapNumber.iloc[0]
+                    options = [f"Lap {int(lap['LapNumber'])} | {lap['Compound']}" if lap['LapNumber'] != fastest_lap else f"Lap {int(lap['LapNumber'])} | {lap['Compound']} | Fastest" for _,lap in laps.iterrows()]
+                    default = [i for i, value in enumerate(options) if 'Fastest' in value]
+                    vals[drivers[i]] = st.selectbox(label=f"Lap Select", options=options, index=int(default[0]), key=f"box_{i}")
+                    vals[drivers[i]] = int(vals[drivers[i]].split('|')[0][3:-1])
+                            
+            lap_nums = vals if len(vals) > 0 else {d: None for d in drivers}
+            fig2, fig3, kpi_dict = telemetry(lap_nums,data,drivers)
+            if isinstance(fig2,str):
+                st.warning(f"Error loading data for {fig2}! Please remove {fig2} from driver selection and try again!", icon="⚠️")
+            elif isinstance(fig3,str):
+                st.warning(f"Error loading data for {fig3}! Please remove {fig3} from driver selection and try again!", icon="⚠️")
+            else:
+                for i, col in enumerate(st.columns(len(drivers))):
+                    with col:
+                        driver = drivers[i]
+                        value = kpi_dict[driver]
+                        st.metric(label="Sample", value=value, label_visibility='hidden')
 
-        st.header(f'Track Animation')
-        _, mid, __ = st.columns([1, 20, 1])
-        with mid:
-            st.plotly_chart(fig2, theme="streamlit", use_container_width=False)
-        st.header(f'Telemetry')
-        st.plotly_chart(fig3, theme="streamlit", use_container_width=True)
+                st.header(f'Track Animation')
+                _, mid, __ = st.columns([1, 20, 1])
+                with mid:
+                    st.plotly_chart(fig2, theme="streamlit", use_container_width=False)
+                st.header(f'Telemetry')
+                st.plotly_chart(fig3, theme="streamlit", use_container_width=True)
