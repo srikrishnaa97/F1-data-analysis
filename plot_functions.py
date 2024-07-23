@@ -114,7 +114,7 @@ def lap_times_plot(data,drivers):
             fig.add_vline(x=p, line_width=3, line_dash='dash', line_color=fastf1.plotting.driver_color(d), row=i+1, col=1)
         rcm = data.race_control_messages
         ymin = data.laps.pick_driver(d).pick_fastest()['LapTime'] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)
-        ymax = (data.laps.pick_driver(d)['LapTime'].sort_values().iloc[-2:-1] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)).iloc[0]
+        ymax = (data.laps.pick_driver(d)['LapTime'].dropna().sort_values().iloc[-2:-1] + dt.datetime(1970, 1, 1, 0, 0, 0, 0)).iloc[0]
         if 'YELLOW' in data.race_control_messages.Flag.unique():
             yellow_laps = rcm[(rcm.Flag == 'YELLOW') & (rcm.Scope == 'Track')]['Lap'].unique()
             for l in yellow_laps:
@@ -356,7 +356,7 @@ def track_animation(data, drivers, lap_numbers):
 
     t0 = dt.datetime(1970,1,1,0,0,0,0)
     t1 = np.min(laps)
-    delta_t = dt.timedelta(seconds=1)
+    delta_t = dt.timedelta(seconds=0.5)
     ts = pd.DataFrame(np.arange(t0,t1,delta_t)).rename({0: 'Time'},axis=1)
     ts['Time'] = ts['Time'] - t0
     driver_pos = pd.DataFrame()
