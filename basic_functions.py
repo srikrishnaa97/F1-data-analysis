@@ -84,26 +84,26 @@ def get_results_df_as_html(data):
     for c in cols:
         html += f'<th>{c}</th>'
     html += '</tr>'
-    for i in range(len(results)):
+    for i,row in enumerate(results.iterrows()):
         html += '<tr>'
         for c in cols:
             if c == 'TeamName':
-                html += f'<td>{results[c].iloc[i]} <div style="background-color:{results["TeamColor"].iloc[i]};width:4vw;height:1vw;align:center;"></div></td>'
+                html += f'<td>{row[1][c]} <div style="background-color:{row[1]["TeamColor"] if "#" in row[1]["TeamColor"] else "#"+row[1]["TeamColor"]};width:4vw;height:1vw;align:center;"></div></td>'
 
-            elif (c == 'Time' and i == 0 and results[c].iloc[i] != 'No Time'):
-                html += f'<td>{results[c].iloc[i][:-3]}</td>'
+            elif (c == 'Time' and i == 0 and row[1][c] != 'No Time'):
+                html += f'<td>{row[1][c][:-3]}</td>'
 
-            elif (c == 'Time' and i > 0 and results[c].iloc[i] != 'No Time'):
-                html += f'<td>+{results[c].iloc[i][3:-3]}</td>'
+            elif (c == 'Time' and i > 0 and row[1][c] != 'No Time'):
+                html += f'<td>+{row[1][c][3:-3]}</td>'
 
-            elif c.startswith('Q') and results[c].iloc[i] != 'No Time':
-                html += f'<td>{results[c].iloc[i][3:-3]}</td>'
+            elif c.startswith('Q') and row[1][c] != 'No Time':
+                html += f'<td>{row[1][c][3:-3]}</td>'
 
             elif c == 'Fastest Time' and results[c].iloc[i] != 'No Time':
-                html += f'<td>{results[c].iloc[i][3:-3]}</td>'
+                html += f'<td>{row[1][c][3:-3]}</td>'
 
             else:
-                html += f'<td>{results[c].iloc[i]}</td>'
+                html += f'<td>{row[1][c]}</td>'
         html += '</tr>'
 
     html += '</table>'
